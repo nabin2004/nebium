@@ -1,0 +1,68 @@
+[Event "Rated Bullet tournament https://lichess.org/tournament/yc1WW2Ox"]
+[Site "https://lichess.org/PpwPOZMq"]
+[Date "2017.04.01"]
+[Round "-"]
+[White "Abbot"]
+[Black "Costello"]
+[Result "0-1"]
+[UTCDate "2017.04.01"]
+[UTCTime "11:32:01"]
+[WhiteElo "2100"]
+[BlackElo "2000"]
+[WhiteRatingDiff "-4"]
+[BlackRatingDiff "+1"]
+[WhiteTitle "FM"]
+[ECO "B30"]
+[Opening "Sicilian Defense: Old Sicilian"]
+[TimeControl "300+0"]
+[Termination "Time forfeit"]
+
+1. e4 { [%eval 0.17] [%clk 0:00:30] } 1... c5 { [%eval 0.19] [%clk 0:00:30] }
+2. Nf3 { [%eval 0.25] [%clk 0:00:29] } 2... Nc6 { [%eval 0.33] [%clk 0:00:30] }
+3. Bc4 { [%eval -0.13] [%clk 0:00:28] } 3... e6 { [%eval -0.04] [%clk 0:00:30] }
+4. c3 { [%eval -0.4] [%clk 0:00:27] } 4... b5? { [%eval 1.18] [%clk 0:00:30] }
+5. Bb3?! { [%eval 0.21] [%clk 0:00:26] } 5... c4 { [%eval 0.32] [%clk 0:00:29] }
+6. Bc2 { [%eval 0.2] [%clk 0:00:25] } 6... a5 { [%eval 0.6] [%clk 0:00:29] }
+7. d4 { [%eval 0.29] [%clk 0:00:23] } 7... cxd3 { [%eval 0.6] [%clk 0:00:27] }
+8. Qxd3 { [%eval 0.12] [%clk 0:00:22] } 8... Nf6 { [%eval 0.52] [%clk 0:00:26] }
+9. e5 { [%eval 0.39] [%clk 0:00:21] } 9... Nd5 { [%eval 0.45] [%clk 0:00:25] }
+10. Bg5?! { [%eval -0.44] [%clk 0:00:18] } 10... Qc7 { [%eval -0.12] [%clk 0:00:23] }
+11. Nbd2?? { [%eval -3.15] [%clk 0:00:14] } 11... h6 { [%eval -2.99] [%clk 0:00:23] }
+12. Bh4 { [%eval -3.0] [%clk 0:00:11] } 12... Ba6? { [%eval -0.12] [%clk 0:00:23] }
+13. b3?? { [%eval -4.14] [%clk 0:00:02] } 13... Nf4? { [%eval -2.73] [%clk 0:00:21] } 0-1
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/j1dkb5dw"]
+[White "BFG9k"]
+[Black "mamalak"]
+[Result "1-0"]
+[UTCDate "2012.12.31"]
+[UTCTime "23:01:03"]
+[WhiteElo "1639"]
+[BlackElo "1403"]
+[WhiteRatingDiff "+5"]
+[BlackRatingDiff "-8"]
+[ECO "C00"]
+[Opening "French Defense: Normal Variation"]
+[TimeControl "600+8"]
+[Termination "Normal"]
+
+1. e4 e6 2. d4 b6 3. a3 Bb7 4. Nc3 Nh6 5. Bxh6 gxh6 6. Be2 Qg5 7. Bg4 h5 8. Nf3 Qg6 9. Nh4 Qg5 10. Bxh5 Qxh4 11. Qf3 Kd8 12. Qxf7 Nc6 13. Qe8# 1-0
+
+[Event "Rated Classical game"]
+[Site "https://lichess.org/szom2tog"]
+[White "Kozakmamay007"]
+[Black "VanillaShamanilla"]
+[Result "1-0"]
+[UTCDate "2012.12.31"]
+[UTCTime "23:03:15"]
+[WhiteElo "1643"]
+[BlackElo "1747"]
+[WhiteRatingDiff "+13"]
+[BlackRatingDiff "-94"]
+[ECO "C50"]
+[Opening "Four Knights Game: Italian Variation"]
+[TimeControl "420+17"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 Bc5 5. a3 Bxf2+ 6. Kxf2 Nd4 7. d3 Ng4+ 8. Kf1 Qf6 9. h3 d5 10. Nxd5 Qe6 11. Nxc7+ 1-0

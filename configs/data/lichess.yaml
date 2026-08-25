@@ -1,7 +1,9 @@
-raw_path: data/raw
-processed_path: data/processed
-tokenizer_path: data/tokenizer
+raw_path: data/raw/lichess_db_standard_rated_2013-01.pgn.zst
+processed_path: data/processed/lichess_2013_01
+tokenizer_path: data/tokenizer/lichess_2013_01
+format: pgn_zst
 max_games: 245293
 min_moves: 20
 train_split: 0.9
 seed: 42
+force_reprocess: false

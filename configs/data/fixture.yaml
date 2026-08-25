@@ -1,0 +1,9 @@
+raw_path: data/fixtures/sample.pgn
+processed_path: data/processed/fixture
+tokenizer_path: data/tokenizer/fixture
+format: pgn
+max_games: 8
+min_moves: 5
+train_split: 0.75
+seed: 42
+force_reprocess: false

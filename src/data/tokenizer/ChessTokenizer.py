@@ -43,3 +43,10 @@ class ChessTokenizerHF:
     @property
     def vocab_size(self):
         return self.tokenizer.get_vocab_size()
+
+    @property
+    def pad_id(self):
+        return self.tokenizer.token_to_id("[PAD]")
+
+
+ChessTokenizer = ChessTokenizerHF

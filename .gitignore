@@ -12,3 +12,10 @@ wheels/
 # Experiment outputs
 wandb/
 outputs/
+
+# Heavy local datasets
+data/raw/
+
+# Generated corpus and tokenizers
+data/processed/
+data/tokenizer/
