@@ -1,0 +1,9 @@
+optimizer: adamw
+learning_rate: 3e-4
+weight_decay: 0.1
+lr_scheduler: cosine
+warmup_steps: 2
+batch_size: 2
+epochs: 1000
+gradient_accumulation_steps: 1
+mixed_precision: fp16
