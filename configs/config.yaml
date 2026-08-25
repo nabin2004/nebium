@@ -1,0 +1,10 @@
+defaults:
+  - model: nebium_base
+  - training: default
+  - data: lichess
+  - logging: wandb
+  - _self_
+
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d_%H-%M-%S}

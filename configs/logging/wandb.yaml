@@ -1,0 +1,7 @@
+backend: wandb
+project: nebium
+entity: null
+mode: online
+run_name: null
+tags: []
+notes: null
