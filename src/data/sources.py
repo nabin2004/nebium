@@ -62,7 +62,31 @@ def iter_uci_games(handle, max_games: int, min_moves: int) -> Iterator[str]:
         yield " ".join(moves)
 
 
-def stream_uci_games(cfg: DictConfig, raw_path: Path) -> Iterator[str]:
+def resolve_raw_files(raw_path: Path, data_format: str, preferred: list[Path] | None = None) -> list[Path]:
+    if preferred:
+        existing = [path for path in preferred if path.exists() and path.stat().st_size > 0]
+        if existing:
+            return existing
+    if raw_path.is_file():
+        return [raw_path]
+    if raw_path.is_dir():
+        pattern = "*.pgn.zst" if data_format == "pgn_zst" else "*.pgn"
+        matches = sorted(raw_path.glob(pattern))
+        if not matches:
+            raise FileNotFoundError(f"No {pattern} files under {raw_path}")
+        return matches
+    raise FileNotFoundError(f"Raw data path does not exist: {raw_path}")
+
+
+def stream_uci_games(cfg: DictConfig, raw_paths: Path | list[Path]) -> Iterator[str]:
+    paths = [raw_paths] if isinstance(raw_paths, Path) else list(raw_paths)
+    remaining = int(cfg.data.max_games)
+    min_moves = int(cfg.data.min_moves)
     data_format = cfg.data.format
-    with open_pgn_source(raw_path, data_format) as handle:
-        yield from iter_uci_games(handle, int(cfg.data.max_games), int(cfg.data.min_moves))
+    for path in paths:
+        if remaining <= 0:
+            break
+        with open_pgn_source(path, data_format) as handle:
+            for sequence in iter_uci_games(handle, remaining, min_moves):
+                remaining -= 1
+                yield sequence

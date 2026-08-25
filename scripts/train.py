@@ -3,7 +3,7 @@ from hydra.utils import get_original_cwd, instantiate
 from omegaconf import DictConfig, OmegaConf
 
 from src.data.dataset import build_dataloaders
-from src.data.prepare import get_tokenizer, prepare_corpus
+from src.data.prepare import get_tokenizer, maybe_push_hf_dataset, prepare_corpus
 from src.hub.push import push_to_hub
 from src.logging.factory import build_logger
 from src.training.loop import run_training
@@ -19,6 +19,9 @@ def main(cfg: DictConfig):
         if not sequences:
             raise RuntimeError("No games loaded. Check data.raw_path, format, min_moves, and max_games.")
         tokenizer = get_tokenizer(cfg, sequences, root=root, corpus_rebuilt=rebuilt)
+        dataset_repo = maybe_push_hf_dataset(cfg, sequences, root=root, corpus_rebuilt=rebuilt)
+        if dataset_repo:
+            print(f"Pushed processed dataset to https://huggingface.co/datasets/{dataset_repo}")
         OmegaConf.set_struct(cfg, False)
         cfg.model.vocab_size = tokenizer.vocab_size
         model = instantiate(cfg.model)
