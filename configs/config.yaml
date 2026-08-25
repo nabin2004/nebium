@@ -1,8 +1,9 @@
 defaults:
-  - model: nebium_base
-  - training: default
-  - data: lichess
+  - model: nebium_stub
+  - training: fixture
+  - data: fixture
   - logging: wandb
+  - hub: disabled
   - _self_
 
 hydra:
