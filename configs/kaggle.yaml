@@ -1,0 +1,11 @@
+defaults:
+  - model: nebium_base
+  - training: kaggle
+  - data: kaggle
+  - logging: wandb
+  - hub: huggingface
+  - _self_
+
+hydra:
+  run:
+    dir: /kaggle/working/outputs/${now:%Y-%m-%d_%H-%M-%S}

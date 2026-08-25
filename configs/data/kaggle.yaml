@@ -1,0 +1,15 @@
+urls:
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst
+raw_path: /kaggle/working/data/raw
+processed_path: /kaggle/working/data/processed/lichess
+tokenizer_path: /kaggle/working/data/tokenizer/lichess
+format: pgn_zst
+max_games: 245293
+min_moves: 20
+train_split: 0.9
+seed: 42
+force_reprocess: false
+hf_dataset:
+  repo_id: null
+  push: true
+  revision: main

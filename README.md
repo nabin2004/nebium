@@ -40,15 +40,14 @@ Fixture and Lichess use **separate** processed/tokenizer directories so they can
 
 ### Cache rules
 
-`prepare_corpus` does **not** re-parse raw PGN when a valid cache exists.
+`prepare_corpus` order:
 
-Reuse `moves.txt` only if `manifest.json` matches:
+1. If `data.hf_dataset.repo_id` is set, pull `moves.txt`, `manifest.json`, and `tokenizer.json` from that **dataset** repo.
+2. Else reuse a local `moves.txt` when `manifest.json` matches `urls`, `format`, `max_games`, and `min_moves`.
+3. Else download each URL in `data.urls` into `raw_path` (skipped if the file is already there), stream-parse PGN to UCI, then train a tokenizer.
+4. After a rebuild, if `hf_dataset.push` and `repo_id` are set, upload the processed files so later machines skip PGN.
 
-- resolved source path
-- source file size and mtime
-- `format`, `max_games`, `min_moves`
-
-Otherwise it streams the source once, writes `moves.txt` + `manifest.json`, then trains a tokenizer.
+Add more Lichess months as extra YAML list entries. The download name is the URL basename (no `wget`).
 
 The tokenizer is loaded from disk if `tokenizer.json` exists **and** the corpus was not just rebuilt. Otherwise it is trained on `moves.txt`.
 
@@ -68,16 +67,14 @@ python scripts/prepare_data.py
 python scripts/train.py logging=disabled
 ```
 
-January 2013 Lichess dump (already in `data/raw/`):
+January 2013 Lichess dump (downloads from YAML if missing):
 
 ```bash
-python scripts/prepare_data.py data=lichess
-python scripts/train.py data=lichess logging=disabled
+python scripts/prepare_data.py data=lichess data.hf_dataset.repo_id=USER/nebium-lichess-uci
+python scripts/train.py data=lichess data.hf_dataset.repo_id=USER/nebium-lichess-uci logging=disabled
 ```
 
-The first Lichess prepare streams the `.zst` file (it is not fully decompressed into RAM). Later runs only read `data/processed/lichess_2013_01/moves.txt`. Cap size with `data.max_games=1000` if you want a subset.
-
-`raw_path` may be a file or a directory. A directory with `format: pgn_zst` uses the first `*.pgn.zst` found.
+The first prepare streams the `.zst` (not fully decompressed into RAM) and can push the UCI corpus to a single Hub **dataset**. Later runs pull that dataset. Cap size with `data.max_games=1000`.
 
 ## Architecture
 
@@ -165,6 +162,22 @@ python scripts/train.py data=lichess model=nebium_base training=default logging=
 python scripts/train.py hub=huggingface hub.repo_id=USER/nebium
 ```
 
+## Kaggle (end to end)
+
+Use [`notebooks/kaggle_train.ipynb`](notebooks/kaggle_train.ipynb). Turn **Internet** on. Add secrets `HF_TOKEN` and optionally `WANDB_API_KEY`.
+
+```bash
+python scripts/train.py --config-name kaggle \
+  data.hf_dataset.repo_id=USER/nebium-lichess-uci \
+  hub.repo_id=USER/nebium
+```
+
+`configs/kaggle.yaml` uses `nebium_base`, GPU batch 32, writes under `/kaggle/working`, and downloads
+
+`https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst`
+
+First session: download → process → push dataset → train → optional model push. Later sessions: pull the dataset → train.
+
 Auth for the Hub is `HF_TOKEN` or `huggingface-cli login`. Tokens are never stored in the repo. The export folder (`export/`) contains `model.pt`, `model_config.json`, `tokenizer.json`, and a short model card. Default `hub=disabled` so fixture runs do not upload.
 
 Useful overrides:
@@ -184,9 +197,10 @@ Scripts:
 
 ```text
 configs/config.yaml          # defaults: stub model, fixture training/data, wandb
+configs/kaggle.yaml          # Kaggle compose: base model + Lichess URLs
 configs/model/               # nebium_stub, nebium_base
-configs/training/            # fixture (tiny), default (full)
-configs/data/                # fixture, lichess
+configs/training/            # fixture, default, kaggle
+configs/data/                # fixture, lichess, kaggle
 configs/logging/             # wandb, disabled
 configs/hub/                 # disabled (default), huggingface
 ```
