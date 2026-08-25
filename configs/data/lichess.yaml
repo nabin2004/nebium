@@ -1,0 +1,7 @@
+raw_path: data/raw
+processed_path: data/processed
+tokenizer_path: data/tokenizer
+max_games: 245293
+min_moves: 20
+train_split: 0.9
+seed: 42

@@ -1,0 +1,9 @@
+optimizer: adamw               # adamw, sgd, lion
+learning_rate: 3e-4
+weight_decay: 0.1
+lr_scheduler: cosine
+warmup_steps: 1000
+batch_size: 64
+epochs: 20
+gradient_accumulation_steps: 1
+mixed_precision: fp16

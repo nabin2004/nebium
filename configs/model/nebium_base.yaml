@@ -1,0 +1,10 @@
+_target_: models.transformer.nebium.Nebium
+vocab_size: 5000
+d_model: 512
+n_heads: 8
+n_layers: 6
+dropout: 0.1
+positional_encoding: rope      # rope, alibi, learned
+attention_type: standard       # standard, flash_attn
+activation: gelu               # gelu, swiglu
+max_seq_len: 512
