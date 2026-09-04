@@ -8,6 +8,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from tqdm import tqdm
 
 import os
+import time
 
 from src.evaluation.metrics import merge_metric_batches, next_token_metrics
 from src.logging.base import Logger
@@ -112,14 +113,23 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
     last_metrics: dict[str, float] = {}
     optimizer.zero_grad(set_to_none=True)
 
+    best_val_loss = float("inf")
+    patience_counter = 0
+
     for epoch in range(start_epoch, int(cfg.training.epochs)):
         model.train()
         running = 0.0
+        start_time = time.time()
+        tokens_processed = 0
         progress = tqdm(train_loader, desc=f"epoch {epoch + 1}/{cfg.training.epochs}")
         for step, batch in enumerate(progress, start=1):
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
+            
+            # Count valid tokens for throughput
+            tokens_processed += int((labels != -100).sum().item())
+            
             with autocast("cuda", enabled=use_amp):
                 logits = model(input_ids, attention_mask)
                 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1), ignore_index=-100)
@@ -128,6 +138,9 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
             running += float(loss.item()) * accum
 
             if step % accum == 0 or step == len(train_loader):
+                if cfg.training.gradient_clipping > 0.0:
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.training.gradient_clipping)
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad(set_to_none=True)
@@ -138,8 +151,19 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
                 logger.log_metrics({"train/loss": running / max(1, step), "lr": lr}, step=global_step)
                 progress.set_postfix(loss=running / max(1, step), lr=lr)
 
+        elapsed = time.time() - start_time
         metrics = evaluate(model, val_loader, device, use_amp)
-        last_metrics = {**metrics, "epoch": epoch + 1}
+        
+        last_metrics = {
+            **metrics,
+            "epoch": epoch + 1,
+            "train/throughput_tokens_sec": tokens_processed / elapsed if elapsed > 0 else 0.0,
+        }
+        
+        if torch.cuda.is_available():
+            last_metrics["train/gpu_mem_mb"] = torch.cuda.max_memory_allocated() / (1024 ** 2)
+            torch.cuda.reset_peak_memory_stats()
+            
         logger.log_metrics(last_metrics, step=global_step)
         progress.set_postfix(
             loss=running / max(1, len(train_loader)),
@@ -148,5 +172,16 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
             ppl=metrics["val/perplexity"],
         )
         save_checkpoint("checkpoint.pt", model, optimizer, scheduler, epoch + 1, global_step, scaler)
+
+        val_loss = metrics.get("val/loss", float("inf"))
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience_counter = 0
+            save_checkpoint("best_model.pt", model, optimizer, scheduler, epoch + 1, global_step, scaler)
+        else:
+            patience_counter += 1
+            if patience_counter >= cfg.training.early_stopping_patience:
+                print(f"Early stopping triggered after {epoch + 1} epochs")
+                break
 
     return last_metrics
