@@ -20,3 +20,7 @@ data/raw/
 # Generated corpus and tokenizers
 data/processed/
 data/tokenizer/
+
+# Checkpoints
+*.pt
+*.pth
