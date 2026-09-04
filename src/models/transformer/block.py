@@ -17,12 +17,13 @@ class TransformerBlock(nn.Module):
         attention_type: str,
         activation: str,
         norm: str,
+        bias: bool = False,
     ) -> None:
         super().__init__()
         self.attn_norm = build_norm(norm, d_model)
-        self.attn = build_attention(attention_type, d_model, n_heads, dropout, max_seq_len, use_rope)
+        self.attn = build_attention(attention_type, d_model, n_heads, dropout, max_seq_len, use_rope, bias)
         self.ffn_norm = build_norm(norm, d_model)
-        self.ffn = build_ffn(activation, d_model, dropout)
+        self.ffn = build_ffn(activation, d_model, dropout, bias)
 
     def forward(self, x: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         x = x + self.attn(self.attn_norm(x), attention_mask)

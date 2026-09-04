@@ -12,6 +12,7 @@ class MultiHeadSelfAttention(nn.Module):
         dropout: float,
         max_seq_len: int,
         use_rope: bool,
+        bias: bool = False,
     ) -> None:
         super().__init__()
         if d_model % n_heads != 0:
@@ -19,10 +20,10 @@ class MultiHeadSelfAttention(nn.Module):
         self.n_heads = n_heads
         self.head_dim = d_model // n_heads
         self.scale = self.head_dim**-0.5
-        self.q_proj = nn.Linear(d_model, d_model, bias=False)
-        self.k_proj = nn.Linear(d_model, d_model, bias=False)
-        self.v_proj = nn.Linear(d_model, d_model, bias=False)
-        self.out_proj = nn.Linear(d_model, d_model, bias=False)
+        self.q_proj = nn.Linear(d_model, d_model, bias=bias)
+        self.k_proj = nn.Linear(d_model, d_model, bias=bias)
+        self.v_proj = nn.Linear(d_model, d_model, bias=bias)
+        self.out_proj = nn.Linear(d_model, d_model, bias=bias)
         self.attn_dropout = nn.Dropout(dropout)
         self.resid_dropout = nn.Dropout(dropout)
         self.rope = RotaryEmbedding(self.head_dim, max_seq_len) if use_rope else None
@@ -44,12 +45,24 @@ class MultiHeadSelfAttention(nn.Module):
             query = apply_rotary_pos_emb(query, cos, sin)
             key = apply_rotary_pos_emb(key, cos, sin)
 
-        scores = torch.matmul(query, key.transpose(-2, -1)) * self.scale
-        scores = scores.masked_fill(_attention_mask(attention_mask), torch.finfo(scores.dtype).min)
-        weights = torch.softmax(scores, dim=-1, dtype=torch.float32).type_as(query)
-        weights = weights.masked_fill(attention_mask[:, None, :, None] == 0, 0.0)
-        weights = self.attn_dropout(weights)
-        attended = torch.matmul(weights, value)
+        if hasattr(torch.nn.functional, "scaled_dot_product_attention") and not hasattr(self, "force_manual_attn"):
+            # We already have a combined causal + padding mask from _attention_mask
+            # _attention_mask returns True where attention should be blocked.
+            # SDPA expects a boolean mask where True indicates that the element *can* take part in attention.
+            attn_mask = ~_attention_mask(attention_mask)
+            attended = torch.nn.functional.scaled_dot_product_attention(
+                query, key, value, 
+                attn_mask=attn_mask,
+                dropout_p=self.attn_dropout.p if self.training else 0.0,
+                is_causal=False
+            )
+        else:
+            scores = torch.matmul(query, key.transpose(-2, -1)) * self.scale
+            scores = scores.masked_fill(_attention_mask(attention_mask), torch.finfo(scores.dtype).min)
+            weights = torch.softmax(scores, dim=-1, dtype=torch.float32).type_as(query)
+            weights = weights.masked_fill(attention_mask[:, None, :, None] == 0, 0.0)
+            weights = self.attn_dropout(weights)
+            attended = torch.matmul(weights, value)
         return self.resid_dropout(self.out_proj(self._merge_heads(attended)))
 
 
@@ -70,7 +83,8 @@ def build_attention(
     dropout: float,
     max_seq_len: int,
     use_rope: bool,
+    bias: bool = False,
 ) -> nn.Module:
     if attention_type == "standard":
-        return MultiHeadSelfAttention(d_model, n_heads, dropout, max_seq_len, use_rope)
+        return MultiHeadSelfAttention(d_model, n_heads, dropout, max_seq_len, use_rope, bias)
     raise ValueError(f"Unknown attention_type: {attention_type}")
