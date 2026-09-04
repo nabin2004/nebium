@@ -6,6 +6,8 @@ from torch.utils.data import DataLoader, Dataset
 from src.data.tokenizer import ChessTokenizer
 
 
+from src.data.packing import pack_sequences
+
 class MoveSequenceDataset(Dataset):
     def __init__(
         self,
@@ -14,25 +16,15 @@ class MoveSequenceDataset(Dataset):
         max_seq_len: int,
     ) -> None:
         self.pad_id = tokenizer.pad_id
-        self.examples: list[dict[str, torch.Tensor]] = []
-        for sequence in sequences:
-            ids = tokenizer.encode(sequence)[: max_seq_len + 1]
-            if len(ids) < 2:
-                continue
-            input_ids = ids[:-1]
-            labels = ids[1:]
-            length = len(input_ids)
-            pad_len = max_seq_len - length
-            attention_mask = [1] * length + [0] * pad_len
-            input_ids = input_ids + [self.pad_id] * pad_len
-            labels = labels + [-100] * pad_len
-            self.examples.append(
-                {
-                    "input_ids": torch.tensor(input_ids, dtype=torch.long),
-                    "labels": torch.tensor(labels, dtype=torch.long),
-                    "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
-                }
-            )
+        tokenized_games = [tokenizer.encode(seq) for seq in sequences if len(seq.strip()) > 0]
+        self.examples = pack_sequences(
+            tokenized_games=tokenized_games,
+            max_seq_len=max_seq_len,
+            pad_id=tokenizer.pad_id,
+            sep_id=tokenizer.sep_id,
+            bos_id=tokenizer.bos_id,
+            eos_id=tokenizer.eos_id,
+        )
 
     def __len__(self) -> int:
         return len(self.examples)

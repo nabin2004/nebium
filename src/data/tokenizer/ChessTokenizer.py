@@ -19,7 +19,7 @@ class ChessTokenizerHF:
         """
         trainer = trainers.BpeTrainer(
             vocab_size=vocab_size,
-            special_tokens=["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"],
+            special_tokens=["[PAD]", "[UNK]", "[BOS]", "[EOS]", "[SEP]"],
             show_progress=True
         )
         self.tokenizer.train([text_file_path], trainer)
@@ -47,6 +47,18 @@ class ChessTokenizerHF:
     @property
     def pad_id(self):
         return self.tokenizer.token_to_id("[PAD]")
+
+    @property
+    def bos_id(self):
+        return self.tokenizer.token_to_id("[BOS]")
+
+    @property
+    def eos_id(self):
+        return self.tokenizer.token_to_id("[EOS]")
+
+    @property
+    def sep_id(self):
+        return self.tokenizer.token_to_id("[SEP]")
 
 
 ChessTokenizer = ChessTokenizerHF
