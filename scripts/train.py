@@ -7,10 +7,12 @@ from src.data.prepare import get_tokenizer, maybe_push_hf_dataset, prepare_corpu
 from src.hub.push import push_to_hub
 from src.logging.factory import build_logger
 from src.training.loop import run_training
+from src.utils.reproducibility import seed_everything
 
 
 @hydra.main(config_path="../configs", config_name="config", version_base=None)
 def main(cfg: DictConfig):
+    seed_everything(int(cfg.data.seed))
     logger = build_logger(cfg)
     try:
         logger.log_config(cfg)
