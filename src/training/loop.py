@@ -7,8 +7,33 @@ from torch.amp import GradScaler, autocast
 from torch.optim.lr_scheduler import LambdaLR
 from tqdm import tqdm
 
+import os
+
 from src.evaluation.metrics import merge_metric_batches, next_token_metrics
 from src.logging.base import Logger
+
+
+def save_checkpoint(path: str, model: torch.nn.Module, optimizer: torch.optim.Optimizer, scheduler: LambdaLR | None, epoch: int, global_step: int, scaler: GradScaler):
+    state = {
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "scheduler": scheduler.state_dict() if scheduler else None,
+        "epoch": epoch,
+        "global_step": global_step,
+        "scaler": scaler.state_dict()
+    }
+    torch.save(state, path)
+
+
+def load_checkpoint(path: str, model: torch.nn.Module, optimizer: torch.optim.Optimizer, scheduler: LambdaLR | None, scaler: GradScaler) -> tuple[int, int]:
+    state = torch.load(path, map_location="cpu")
+    model.load_state_dict(state["model"])
+    optimizer.load_state_dict(state["optimizer"])
+    if scheduler and state["scheduler"]:
+        scheduler.load_state_dict(state["scheduler"])
+    if "scaler" in state and scaler:
+        scaler.load_state_dict(state["scaler"])
+    return state.get("epoch", 0), state.get("global_step", 0)
 
 
 def build_optimizer(model: torch.nn.Module, cfg: DictConfig) -> torch.optim.Optimizer:
@@ -73,11 +98,21 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
     accum = int(cfg.training.gradient_accumulation_steps)
 
     logger.watch_model(model)
+    start_epoch = 0
     global_step = 0
+
+    if cfg.training.get("resume_from"):
+        resume_path = cfg.training.resume_from
+        if os.path.exists(resume_path):
+            start_epoch, global_step = load_checkpoint(resume_path, model, optimizer, scheduler, scaler)
+            print(f"Resumed from {resume_path} at epoch {start_epoch}, step {global_step}")
+        else:
+            print(f"Checkpoint not found at {resume_path}, starting from scratch.")
+
     last_metrics: dict[str, float] = {}
     optimizer.zero_grad(set_to_none=True)
 
-    for epoch in range(int(cfg.training.epochs)):
+    for epoch in range(start_epoch, int(cfg.training.epochs)):
         model.train()
         running = 0.0
         progress = tqdm(train_loader, desc=f"epoch {epoch + 1}/{cfg.training.epochs}")
@@ -112,4 +147,6 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
             top5=metrics["val/top5_accuracy"],
             ppl=metrics["val/perplexity"],
         )
+        save_checkpoint("checkpoint.pt", model, optimizer, scheduler, epoch + 1, global_step, scaler)
+
     return last_metrics
