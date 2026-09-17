@@ -43,6 +43,19 @@ def generate_sample_games(
                         prompt_valid = False
                         break
 
+            # Skip generation entirely if the prompt itself is invalid UCI
+            if not prompt_valid:
+                samples.append({
+                    "prompt": prompt_str if prompt_str else "[start]",
+                    "generated": "",
+                    "full_game": prompt_str,
+                    "legal_moves": 0,
+                    "total_moves": 0,
+                    "legal_rate": 0.0,
+                    "stop_reason": "invalid_prompt",
+                })
+                continue
+
             # Encode prompt
             if prompt_str:
                 encoded = tokenizer.encode(prompt_str)
@@ -110,13 +123,27 @@ def generate_sample_games(
                 moves_in_token = token_str.split()
                 for m_str in moves_in_token:
                     generated_moves.append(m_str)
+                    is_legal = False
                     try:
                         move = chess.Move.from_uci(m_str)
                         if move in board.legal_moves:
                             board.push(move)
                             legal_count += 1
+                            is_legal = True
                     except Exception:
                         pass
+                    # CRITICAL: if the model generated an illegal/unparseable move,
+                    # the board state has diverged from the token sequence.
+                    # Stop generation here — continuing would evaluate future moves
+                    # against the wrong board position, silently inflating legality.
+                    if not is_legal:
+                        stop_reason = "illegal_move"
+                        break
+                else:
+                    # inner for-loop completed without break → continue outer loop
+                    continue
+                # inner loop hit 'break' (illegal move) → break outer loop too
+                break
 
             tot = len(generated_moves)
             legal_rate = (legal_count / tot) if tot > 0 else 0.0

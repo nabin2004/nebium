@@ -7,13 +7,15 @@ from hydra.utils import instantiate
 from hydra import compose, initialize
 from src.data.prepare import get_tokenizer
 
+# Each entry: (prompt_moves_str, expected_next_move_uci)
+# The model is given the prompt and must predict the expected next move.
 OPENINGS = {
-    "Ruy Lopez": "e2e4 e7e5 g1f3 b8c6 f1b5",
-    "Sicilian Defense": "e2e4 c7c5",
-    "Queen's Gambit": "d2d4 d7d5 c2c4",
-    "French Defense": "e2e4 e7e6",
-    "Caro-Kann": "e2e4 c7c6",
-    "Italian Game": "e2e4 e7e5 g1f3 b8c6 f1c4",
+    "Ruy Lopez (3...a6)": ("e2e4 e7e5 g1f3 b8c6 f1b5", "a7a6"),
+    "Sicilian Defense (2.Nf3)": ("e2e4 c7c5", "g1f3"),
+    "Queen's Gambit (2...dxc4 or 2...e6)": ("d2d4 d7d5 c2c4", "d5c4"),  # most common
+    "French Defense (2.d4)": ("e2e4 e7e6", "d2d4"),
+    "Caro-Kann (2.d4)": ("e2e4 c7c6", "d2d4"),
+    "Italian Game (3...Bc5)": ("e2e4 e7e5 g1f3 b8c6 f1c4", "f8c5"),
 }
 
 def get_nebium_move(model, tokenizer, board, device):
@@ -50,19 +52,16 @@ def get_nebium_move(model, tokenizer, board, device):
     import random
     return random.choice(list(board.legal_moves))
 
-def evaluate_opening(model, tokenizer, device, opening_name, opening_moves_str):
+def evaluate_opening(model, tokenizer, device, opening_name, prompt_moves_str, expected_move):
     board = chess.Board()
-    moves = opening_moves_str.split()
-    
-    # Play the opening minus the last move
-    for m in moves[:-1]:
+    for m in prompt_moves_str.split():
         board.push(chess.Move.from_uci(m))
         
-    expected_move = moves[-1]
     predicted = get_nebium_move(model, tokenizer, board, device)
     
     is_correct = (predicted.uci() == expected_move)
-    print(f"[{opening_name}] Expected: {expected_move}, Predicted: {predicted.uci()} -> {'PASS' if is_correct else 'FAIL'}")
+    print(f"[{opening_name}] Prompt: {prompt_moves_str!r}")
+    print(f"  Expected: {expected_move}, Predicted: {predicted.uci()} -> {'PASS' if is_correct else 'FAIL'}")
     return is_correct
 
 def main():
@@ -90,11 +89,11 @@ def main():
 
     correct = 0
     results_dict = {}
-    for name, moves in OPENINGS.items():
-        is_correct = evaluate_opening(model, tokenizer, device, name, moves)
+    for name, (prompt_moves, expected_move) in OPENINGS.items():
+        is_correct = evaluate_opening(model, tokenizer, device, name, prompt_moves, expected_move)
         if is_correct:
             correct += 1
-        results_dict[name] = is_correct
+        results_dict[name] = {"expected": expected_move, "correct": is_correct}
             
     score = correct / len(OPENINGS)
     print(f"\nOpening Compliance Score: {correct}/{len(OPENINGS)} ({score*100:.1f}%)")

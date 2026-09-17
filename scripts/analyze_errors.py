@@ -68,12 +68,14 @@ def main():
                 info_after = engine.analyse(board, chess.engine.Limit(depth=10))
                 score_after = info_after["score"].white().score(mate_score=10000)
                 
-                # If model is white, we want score to stay high. Drop = before - after
-                # If model is black, we want score to stay low. Drop = after - before
-                is_white = board.turn == chess.BLACK # since we just pushed the move
-                if is_white:
+                # After push(), board.turn has already flipped to the opponent.
+                # So if board.turn is now BLACK, that means WHITE just moved.
+                white_just_moved = (board.turn == chess.BLACK)
+                if white_just_moved:
+                    # White wants the score to stay high; a drop means White blundered
                     drop = (score_before - score_after) / 100.0
                 else:
+                    # Black wants the score to stay low; a rise means Black blundered
                     drop = (score_after - score_before) / 100.0
                     
                 if drop > 2.0:
