@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--train_moves", type=str, default="data/processed/fixture/moves.txt", help="Path to training moves.txt")
     parser.add_argument("--test_puzzles", type=str, default="data/fixtures/puzzles.jsonl", help="Path to test puzzles JSONL")
     parser.add_argument("--n", type=int, default=10, help="N-gram length to compute overlap")
+    parser.add_argument("--output", type=str, default="", help="Path to save JSON results")
     args = parser.parse_args()
 
     train_path = Path(args.train_moves)
@@ -57,11 +58,26 @@ def main():
     overlap = train_ngrams.intersection(test_ngrams)
     print(f"Found {len(overlap)} overlapping {args.n}-grams.")
     
+    leakage = 0.0
     if test_ngrams:
         leakage = len(overlap) / len(test_ngrams) * 100
         print(f"Data Leakage / Memorization Metric: {leakage:.2f}% of test {args.n}-grams are in the training set.")
     else:
         print("No test n-grams to compare.")
+
+    if args.output:
+        import json as js
+        results = {
+            "n_gram_size": args.n,
+            "train_unique_ngrams": len(train_ngrams),
+            "test_unique_ngrams": len(test_ngrams),
+            "test_sequences": test_sequences,
+            "overlap_count": len(overlap),
+            "leakage_percent": leakage
+        }
+        with open(args.output, "w") as f:
+            js.dump(results, f, indent=4)
+        print(f"Results saved to {args.output}")
 
 if __name__ == "__main__":
     main()

@@ -60,9 +60,14 @@ def main(cfg: DictConfig):
         repo_id = push_to_hub(model, tokenizer, cfg, metrics)
         if repo_id:
             print(f"Pushed checkpoint to https://huggingface.co/{repo_id}")
+
+        if bool(cfg.training.get("generate_report", True)):
+            import subprocess
+            print("\nGenerating final paper report and running extensive evaluations...")
+            subprocess.run("uv run python scripts/generate_paper_report.py", shell=True)
+
     finally:
         logger.finish()
-
 
 if __name__ == "__main__":
     main()

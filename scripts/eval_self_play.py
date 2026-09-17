@@ -71,6 +71,7 @@ def main():
     parser.add_argument("--checkpoint", type=str, default="best_model.pt", help="Path to checkpoint")
     parser.add_argument("--games", type=int, default=10, help="Number of games to play")
     parser.add_argument("--depth", type=int, default=10, help="Stockfish depth")
+    parser.add_argument("--output", type=str, default="", help="Path to save JSON results")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,11 +81,12 @@ def main():
     cfg = compose(config_name="config", overrides=[f"model={args.config_name}"])
         
     tokenizer = get_tokenizer(cfg)
+    cfg.model.vocab_size = tokenizer.vocab_size
     model = instantiate(cfg.model)
     
     if os.path.exists(args.checkpoint):
         checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
-        model.load_state_dict(checkpoint["model_state_dict"])
+        model.load_state_dict(checkpoint.get("model", checkpoint.get("model_state_dict")))
     else:
         print("Warning: Checkpoint not found. Using randomly initialized weights.")
         
@@ -131,6 +133,7 @@ def main():
         score = 0.999
         
     import math
+    import json
     elo_diff = -400 * math.log10(1/score - 1)
     
     # Assume Stockfish depth 10 is ~2000 Elo
@@ -138,6 +141,20 @@ def main():
     estimated_elo = stockfish_elo + elo_diff
     print(f"\nFinal Score: {score*100:.1f}%")
     print(f"Estimated Elo against Stockfish (Depth {args.depth}): {estimated_elo:.0f}")
+
+    if args.output:
+        results = {
+            "games": args.games,
+            "depth": args.depth,
+            "wins": wins,
+            "losses": losses,
+            "draws": draws,
+            "score": score,
+            "estimated_elo": estimated_elo
+        }
+        with open(args.output, "w") as f:
+            json.dump(results, f, indent=4)
+        print(f"Results saved to {args.output}")
 
 if __name__ == "__main__":
     main()

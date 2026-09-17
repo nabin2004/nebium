@@ -69,6 +69,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_name", type=str, default="nebium_stub")
     parser.add_argument("--checkpoint", type=str, default="best_model.pt")
+    parser.add_argument("--output", type=str, default="", help="Path to save JSON results")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -77,21 +78,32 @@ def main():
     cfg = compose(config_name="config", overrides=[f"model={args.config_name}"])
     
     tokenizer = get_tokenizer(cfg)
+    cfg.model.vocab_size = tokenizer.vocab_size
     model = instantiate(cfg.model)
     
     if os.path.exists(args.checkpoint):
         ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
-        model.load_state_dict(ckpt["model_state_dict"])
+        model.load_state_dict(ckpt.get("model", ckpt.get("model_state_dict")))
         
     model.to(device)
     model.eval()
 
     correct = 0
+    results_dict = {}
     for name, moves in OPENINGS.items():
-        if evaluate_opening(model, tokenizer, device, name, moves):
+        is_correct = evaluate_opening(model, tokenizer, device, name, moves)
+        if is_correct:
             correct += 1
+        results_dict[name] = is_correct
             
-    print(f"\nOpening Compliance Score: {correct}/{len(OPENINGS)} ({correct/len(OPENINGS)*100:.1f}%)")
+    score = correct / len(OPENINGS)
+    print(f"\nOpening Compliance Score: {correct}/{len(OPENINGS)} ({score*100:.1f}%)")
+    
+    if args.output:
+        import json
+        with open(args.output, "w") as f:
+            json.dump({"correct": correct, "total": len(OPENINGS), "score": score, "details": results_dict}, f, indent=4)
+        print(f"Results saved to {args.output}")
 
 if __name__ == "__main__":
     main()

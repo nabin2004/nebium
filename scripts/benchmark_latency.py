@@ -24,7 +24,7 @@ def benchmark_generation(model, tokenizer, device, prompt_str, num_moves=5):
                 return None
         legal_ucis = [m.uci() for m in board.legal_moves]
         allowed_tokens = []
-        for v, tok_id in tokenizer.vocab.items():
+        for v, tok_id in tokenizer.get_vocab().items():
             s = v.strip()
             if not s:
                 continue
@@ -60,10 +60,18 @@ def benchmark_generation(model, tokenizer, device, prompt_str, num_moves=5):
     print(f"Top-K Sampling: {topk_time/num_moves:.3f} sec/move")
     print(f"Legal-Filtered Greedy: {legal_greedy_time/num_moves:.3f} sec/move")
     print(f"Beam Search (w=3): {beam_time/num_moves:.3f} sec/move")
+    
+    return {
+        "greedy_sec_per_move": greedy_time/num_moves,
+        "topk_sec_per_move": topk_time/num_moves,
+        "legal_greedy_sec_per_move": legal_greedy_time/num_moves,
+        "beam_search_sec_per_move": beam_time/num_moves
+    }
 
 def main():
     parser = argparse.ArgumentParser(description="Benchmark Latency")
     parser.add_argument("--config_name", type=str, default="nebium_stub")
+    parser.add_argument("--output", type=str, default="", help="Path to save JSON results")
     args = parser.parse_args()
 
     if not hydra.core.global_hydra.GlobalHydra.instance().is_initialized():
@@ -71,6 +79,7 @@ def main():
     cfg = compose(config_name="config", overrides=[f"model={args.config_name}"])
     
     tokenizer = get_tokenizer(cfg)
+    cfg.model.vocab_size = tokenizer.vocab_size
     model = instantiate(cfg.model)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -81,7 +90,13 @@ def main():
     benchmark_generation(model, tokenizer, device, "e2e4", num_moves=1)
     
     print("\n--- Benchmarking ---")
-    benchmark_generation(model, tokenizer, device, "e2e4 e7e5 g1f3", num_moves=5)
+    results = benchmark_generation(model, tokenizer, device, "e2e4 e7e5 g1f3", num_moves=5)
+
+    if args.output:
+        import json
+        with open(args.output, "w") as f:
+            json.dump(results, f, indent=4)
+        print(f"Results saved to {args.output}")
 
 if __name__ == "__main__":
     main()

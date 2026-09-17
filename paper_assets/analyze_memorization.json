@@ -1,0 +1,8 @@
+{
+    "n_gram_size": 10,
+    "train_unique_ngrams": 45,
+    "test_unique_ngrams": 2405,
+    "test_sequences": 41,
+    "overlap_count": 0,
+    "leakage_percent": 0.0
+}

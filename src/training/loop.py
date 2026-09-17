@@ -148,6 +148,7 @@ def run_training(
 
     best_val_loss = float("inf")
     patience_counter = 0
+    training_history_list = []
 
     for epoch in range(start_epoch, int(cfg.training.epochs)):
         model.train()
@@ -245,6 +246,12 @@ def run_training(
         val_ppl = metrics.get("val/perplexity", float("nan"))
         lr = optimizer.param_groups[0]["lr"]
         throughput = tokens_processed / elapsed if elapsed > 0 else 0.0
+        
+        training_history_list.append({
+            "epoch": epoch + 1,
+            "train_loss": train_loss_epoch,
+            "val_loss": val_loss
+        })
 
         print("\n" + "=" * 78)
         print(f"  [EPOCH {epoch + 1}/{cfg.training.epochs} EVALUATION SUMMARY]")
@@ -283,5 +290,8 @@ def run_training(
             if patience_counter >= patience:
                 print(f"Early stopping triggered after {epoch + 1} epochs")
                 break
+
+    with open("training_history.json", "w") as f:
+        json.dump(training_history_list, f, indent=4)
 
     return last_metrics

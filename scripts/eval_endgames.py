@@ -20,6 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description="Evaluate Endgame Conversions")
     parser.add_argument("--config_name", type=str, default="nebium_stub")
     parser.add_argument("--checkpoint", type=str, default="best_model.pt")
+    parser.add_argument("--output", type=str, default="", help="Path to save JSON results")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -28,17 +29,19 @@ def main():
     cfg = compose(config_name="config", overrides=[f"model={args.config_name}"])
     
     tokenizer = get_tokenizer(cfg)
+    cfg.model.vocab_size = tokenizer.vocab_size
     model = instantiate(cfg.model)
     
     if os.path.exists(args.checkpoint):
         ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
-        model.load_state_dict(ckpt["model_state_dict"])
+        model.load_state_dict(ckpt.get("model", ckpt.get("model_state_dict")))
         
     model.to(device)
     model.eval()
 
     sf_path = ensure_stockfish()
     
+    results = {}
     with chess.engine.SimpleEngine.popen_uci(sf_path) as engine:
         for name, move_seq in ENDGAMES.items():
             board = chess.Board()
@@ -63,6 +66,13 @@ def main():
                 
             res = board.result(claim_draw=True)
             print(f"Result for {name}: {res}")
+            results[name] = res
+
+    if args.output:
+        import json
+        with open(args.output, "w") as f:
+            json.dump(results, f, indent=4)
+        print(f"Results saved to {args.output}")
 
 if __name__ == "__main__":
     main()
