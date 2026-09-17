@@ -95,6 +95,7 @@ class ExperimentConfig:
     training: TrainingConfig = field(default_factory=TrainingConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     hub: HubConfig = field(default_factory=HubConfig)
+    smoke_test: bool = False
 
 
 def register_configs() -> None:

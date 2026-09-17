@@ -166,6 +166,17 @@ python scripts/train.py hub=huggingface hub.repo_id=USER/nebium
 
 Use [`notebooks/kaggle_train.ipynb`](notebooks/kaggle_train.ipynb). Turn **Internet** on. Add secrets `HF_TOKEN` and optionally `WANDB_API_KEY`.
 
+### Quick pipeline check (smoke test)
+Run `--smoke-test` to verify all pipeline stages (data ingestion, tokenizer training, model initialization, forward/backward pass, validation metrics, puzzle eval, GGUF export, and Hub export packaging) in ~5 seconds without downloading large datasets or overwriting production checkpoints:
+
+```bash
+python scripts/train.py --config-name kaggle --smoke-test \
+  data.hf_dataset.repo_id=USER/nebium-lichess-uci \
+  hub.repo_id=USER/nebium
+```
+
+### Full training run
+
 ```bash
 python scripts/train.py --config-name kaggle \
   data.hf_dataset.repo_id=USER/nebium-lichess-uci \

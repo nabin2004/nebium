@@ -6,6 +6,8 @@ defaults:
   - hub: disabled
   - _self_
 
+smoke_test: false
+
 hydra:
   run:
     dir: outputs/${now:%Y-%m-%d_%H-%M-%S}

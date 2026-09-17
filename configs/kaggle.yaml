@@ -6,6 +6,8 @@ defaults:
   - hub: huggingface
   - _self_
 
+smoke_test: false
+
 hydra:
   run:
     dir: /kaggle/working/outputs/${now:%Y-%m-%d_%H-%M-%S}

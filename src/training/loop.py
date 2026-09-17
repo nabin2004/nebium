@@ -145,6 +145,8 @@ def run_training(
         if os.path.exists(puzzle_path):
             with open(puzzle_path, "r", encoding="utf-8") as f:
                 puzzles_dataset = [json.loads(line) for line in f if line.strip()]
+            if bool(cfg.get("smoke_test", False)):
+                puzzles_dataset = puzzles_dataset[:5]
             print(f"Loaded {len(puzzles_dataset)} puzzles for evaluation.")
         else:
             print(f"Puzzle dataset not found at {puzzle_path}")
