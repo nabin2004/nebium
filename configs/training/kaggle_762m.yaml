@@ -6,9 +6,9 @@ learning_rate: 1.5e-4
 weight_decay: 0.1
 lr_scheduler: cosine
 warmup_steps: 3000
-batch_size: 8
+batch_size: 1
 epochs: 20
-gradient_accumulation_steps: 16      # effective batch = 128 seqs
+gradient_accumulation_steps: 128      # effective batch = 128 seqs
 mixed_precision: fp16
 gradient_clipping: 1.0
 early_stopping_patience: 5

@@ -98,7 +98,7 @@ def apply_smoke_test_overrides(cfg: DictConfig, root: Path | str | None = None) 
 
     # 2. Training configuration (fast 1 epoch, small batch, limited steps)
     cfg.training.epochs = 1
-    cfg.training.batch_size = min(int(cfg.training.get("batch_size", 4)), 4)
+    cfg.training.batch_size = min(int(cfg.training.get("batch_size", 1)), 1)
     cfg.training.warmup_steps = 1
     cfg.training.gradient_accumulation_steps = 1
     cfg.training.early_stopping_patience = 1
