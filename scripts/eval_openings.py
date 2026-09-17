@@ -1,0 +1,97 @@
+import argparse
+import os
+import chess
+import torch
+import hydra
+from hydra.utils import instantiate
+from hydra import compose, initialize
+from src.data.prepare import get_tokenizer
+
+OPENINGS = {
+    "Ruy Lopez": "e2e4 e7e5 g1f3 b8c6 f1b5",
+    "Sicilian Defense": "e2e4 c7c5",
+    "Queen's Gambit": "d2d4 d7d5 c2c4",
+    "French Defense": "e2e4 e7e6",
+    "Caro-Kann": "e2e4 c7c6",
+    "Italian Game": "e2e4 e7e5 g1f3 b8c6 f1c4",
+}
+
+def get_nebium_move(model, tokenizer, board, device):
+    prompt_str = " ".join([m.uci() for m in board.move_stack])
+    if prompt_str:
+        encoded = tokenizer.encode(prompt_str)
+        input_ids = [tokenizer.bos_id] + encoded
+    else:
+        input_ids = [tokenizer.bos_id]
+        
+    x = torch.tensor([input_ids], dtype=torch.long, device=device)
+    mask = torch.ones_like(x, dtype=torch.long, device=device)
+    
+    with torch.no_grad():
+        logits = model(x, mask)
+        next_token_logits = logits[0, -1, :]
+        probs = torch.softmax(next_token_logits, dim=-1)
+        sorted_indices = torch.argsort(probs, descending=True)
+        
+        for idx in sorted_indices:
+            token_id = idx.item()
+            if token_id in (tokenizer.eos_id, tokenizer.pad_id):
+                continue
+            token_str = tokenizer.decode([token_id]).strip()
+            if not token_str:
+                continue
+            m_str = token_str.split()[0]
+            try:
+                move = chess.Move.from_uci(m_str)
+                if move in board.legal_moves:
+                    return move
+            except Exception:
+                continue
+    import random
+    return random.choice(list(board.legal_moves))
+
+def evaluate_opening(model, tokenizer, device, opening_name, opening_moves_str):
+    board = chess.Board()
+    moves = opening_moves_str.split()
+    
+    # Play the opening minus the last move
+    for m in moves[:-1]:
+        board.push(chess.Move.from_uci(m))
+        
+    expected_move = moves[-1]
+    predicted = get_nebium_move(model, tokenizer, board, device)
+    
+    is_correct = (predicted.uci() == expected_move)
+    print(f"[{opening_name}] Expected: {expected_move}, Predicted: {predicted.uci()} -> {'PASS' if is_correct else 'FAIL'}")
+    return is_correct
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config_name", type=str, default="nebium_stub")
+    parser.add_argument("--checkpoint", type=str, default="best_model.pt")
+    args = parser.parse_args()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if not hydra.core.global_hydra.GlobalHydra.instance().is_initialized():
+        initialize(version_base=None, config_path="../configs")
+    cfg = compose(config_name="config", overrides=[f"model={args.config_name}"])
+    
+    tokenizer = get_tokenizer(cfg)
+    model = instantiate(cfg.model)
+    
+    if os.path.exists(args.checkpoint):
+        ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+        model.load_state_dict(ckpt["model_state_dict"])
+        
+    model.to(device)
+    model.eval()
+
+    correct = 0
+    for name, moves in OPENINGS.items():
+        if evaluate_opening(model, tokenizer, device, name, moves):
+            correct += 1
+            
+    print(f"\nOpening Compliance Score: {correct}/{len(OPENINGS)} ({correct/len(OPENINGS)*100:.1f}%)")
+
+if __name__ == "__main__":
+    main()

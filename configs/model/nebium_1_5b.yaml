@@ -1,0 +1,11 @@
+_target_: src.models.transformer.nebium.Nebium
+vocab_size: 5000
+d_model: 1600
+n_heads: 25
+n_layers: 48
+dropout: 0.1
+positional_encoding: rope
+attention_type: standard
+activation: swiglu
+norm: rmsnorm
+max_seq_len: 1024

@@ -81,6 +81,7 @@ class Nebium(nn.Module):
         temperature: float = 1.0,
         top_k: int = 0,
         top_p: float = 1.0,
+        legal_tokens_fn = None,
     ) -> torch.Tensor:
         tokens = input_ids
         mask = attention_mask
@@ -89,6 +90,14 @@ class Nebium(nn.Module):
             cropped_mask = mask[:, -self.max_seq_len :]
             logits = self.forward(cropped, cropped_mask)
             next_token_logits = logits[:, -1, :]
+            
+            if legal_tokens_fn is not None:
+                for i in range(tokens.size(0)):
+                    allowed_tokens = legal_tokens_fn(tokens[i].tolist())
+                    if allowed_tokens is not None:
+                        mask_legal = torch.zeros_like(next_token_logits[i], dtype=torch.bool)
+                        mask_legal[allowed_tokens] = True
+                        next_token_logits[i, ~mask_legal] = -float("Inf")
             
             if temperature != 1.0:
                 next_token_logits = next_token_logits / temperature
@@ -119,3 +128,47 @@ class Nebium(nn.Module):
             tokens = torch.cat([tokens, next_token], dim=1)
             mask = torch.cat([mask, torch.ones_like(next_token)], dim=1)
         return tokens
+
+    @torch.no_grad()
+    def beam_search_generate(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        max_new_tokens: int = 1,
+        beam_width: int = 3,
+        legal_tokens_fn = None,
+    ) -> torch.Tensor:
+        batch_size = input_ids.size(0)
+        assert batch_size == 1, "Beam search only supports batch size 1"
+        
+        beams = [(0.0, input_ids[0].tolist())]
+        
+        for _ in range(max_new_tokens):
+            new_beams = []
+            for score, seq in beams:
+                seq_tensor = torch.tensor([seq], dtype=torch.long, device=input_ids.device)
+                mask = torch.ones_like(seq_tensor)
+                
+                cropped = seq_tensor[:, -self.max_seq_len :]
+                cropped_mask = mask[:, -self.max_seq_len :]
+                
+                logits = self.forward(cropped, cropped_mask)
+                log_probs = torch.log_softmax(logits[0, -1, :], dim=-1)
+                
+                if legal_tokens_fn is not None:
+                    allowed = legal_tokens_fn(seq)
+                    if allowed is not None:
+                        mask_legal = torch.zeros_like(log_probs, dtype=torch.bool)
+                        mask_legal[allowed] = True
+                        log_probs[~mask_legal] = -float("Inf")
+                
+                topk_log_probs, topk_indices = torch.topk(log_probs, beam_width)
+                for lp, idx in zip(topk_log_probs.tolist(), topk_indices.tolist()):
+                    if lp != -float("Inf"):
+                        new_beams.append((score + lp, seq + [idx]))
+                        
+            new_beams.sort(key=lambda x: x[0], reverse=True)
+            beams = new_beams[:beam_width]
+            
+        best_seq = beams[0][1]
+        return torch.tensor([best_seq], dtype=torch.long, device=input_ids.device)
