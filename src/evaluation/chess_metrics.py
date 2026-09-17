@@ -61,7 +61,7 @@ def generate_sample_games(
                     stop_reason = "game_over"
                     break
 
-                max_ctx = getattr(model, "max_seq_len", 512)
+                max_ctx = getattr(model.module if hasattr(model, "module") else model, "max_seq_len", 512)
                 tokens_window = curr_tokens[-max_ctx:]
                 x = torch.tensor([tokens_window], dtype=torch.long, device=device)
                 mask = torch.ones_like(x, dtype=torch.long, device=device)

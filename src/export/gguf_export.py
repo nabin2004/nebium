@@ -86,6 +86,8 @@ def export_to_gguf(
     except ImportError as exc:
         raise ImportError("gguf package is required for GGUF export. Install with: pip install gguf") from exc
 
+    model = model.module if hasattr(model, "module") else model
+
     out_file = Path(output_path)
     out_file.parent.mkdir(parents=True, exist_ok=True)
 

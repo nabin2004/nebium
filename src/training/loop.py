@@ -26,7 +26,7 @@ def save_checkpoint(
     scaler: GradScaler,
 ):
     state = {
-        "model": model.state_dict(),
+        "model": model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
         "optimizer": optimizer.state_dict(),
         "scheduler": scheduler.state_dict() if scheduler else None,
         "epoch": epoch,
@@ -44,7 +44,10 @@ def load_checkpoint(
     scaler: GradScaler,
 ) -> tuple[int, int]:
     state = torch.load(path, map_location="cpu")
-    model.load_state_dict(state["model"])
+    if hasattr(model, "module"):
+        model.module.load_state_dict(state["model"])
+    else:
+        model.load_state_dict(state["model"])
     optimizer.load_state_dict(state["optimizer"])
     if scheduler and state.get("scheduler"):
         scheduler.load_state_dict(state["scheduler"])
@@ -113,6 +116,9 @@ def run_training(
 ) -> dict[str, float]:
     device = _device()
     model = model.to(device)
+    if torch.cuda.device_count() > 1:
+        print(f"Using {torch.cuda.device_count()} GPUs!")
+        model = torch.nn.DataParallel(model)
     use_amp = cfg.training.mixed_precision == "fp16" and device.type == "cuda"
     optimizer = build_optimizer(model, cfg)
     steps_per_epoch = max(1, math.ceil(len(train_loader) / int(cfg.training.gradient_accumulation_steps)))

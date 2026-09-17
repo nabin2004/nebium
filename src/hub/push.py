@@ -64,7 +64,8 @@ def export_checkpoint(
     export_dir: Path,
 ) -> Path:
     export_dir.mkdir(parents=True, exist_ok=True)
-    torch.save(model.state_dict(), export_dir / "model.pt")
+    state_dict = model.module.state_dict() if hasattr(model, "module") else model.state_dict()
+    torch.save(state_dict, export_dir / "model.pt")
     config = OmegaConf.to_container(cfg.model, resolve=True)
     (export_dir / "model_config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     tokenizer.save(str(export_dir / "tokenizer.json"))
