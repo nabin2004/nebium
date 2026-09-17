@@ -1,0 +1,198 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="600" rx="16" fill="url(#bgGrad)" />
+  <circle cx="150" cy="120" r="180" fill="#6366f1" opacity="0.08" filter="blur(60px)" />
+  <circle cx="1050" cy="480" r="220" fill="#a855f7" opacity="0.08" filter="blur(70px)" />
+
+  <!-- Title Badge -->
+  <g transform="translate(60, 45)">
+    <rect width="210" height="34" rx="17" fill="#6366f1" fill-opacity="0.2" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="105" y="22" fill="#c7d2fe" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600" text-anchor="middle">AUTOREGRESSIVE CHESS LM</text>
+  </g>
+  <text x="60" y="115" fill="#ffffff" font-family="'IBM Plex Sans', sans-serif" font-size="28" font-weight="700">Predicting Grandmaster Chess via Causal Next-Move Attention</text>
+  <text x="60" y="142" fill="#94a3b8" font-family="'IBM Plex Sans', sans-serif" font-size="15">From raw space-delimited UCI sequences to deep positional dynamics without hardcoded chess heuristics.</text>
+
+  <!-- Left Card: Chess Board Context -->
+  <g transform="translate(60, 180)" filter="url(#shadow)">
+    <rect width="320" height="360" rx="16" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
+    <text x="24" y="36" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="16" font-weight="600">Board State Context</text>
+    <text x="24" y="56" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="12">1. e4 e5 2. Nf3 Nc6</text>
+
+    <!-- Mini Board Graphic -->
+    <g transform="translate(24, 75)">
+      <rect width="272" height="256" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1" />
+      <!-- Simple 4x4 sample squares visualizer -->
+      <g transform="translate(16, 12)">
+        <!-- Chessboard 8x8 squares -->
+        <rect x="0" y="0" width="240" height="232" rx="4" fill="#334155" />
+        <!-- Checker pattern -->
+        <g fill="#cbd5e1" opacity="0.9">
+          <!-- Row 1 -->
+          <rect x="0" y="0" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="60" y="0" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="120" y="0" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="180" y="0" width="30" height="29" fill="#e2e8f0"/>
+          <!-- Row 2 -->
+          <rect x="30" y="29" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="90" y="29" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="150" y="29" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="210" y="29" width="30" height="29" fill="#e2e8f0"/>
+          <!-- Row 3 -->
+          <rect x="0" y="58" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="60" y="58" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="120" y="58" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="180" y="58" width="30" height="29" fill="#e2e8f0"/>
+          <!-- Row 4 -->
+          <rect x="30" y="87" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="90" y="87" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="150" y="87" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="210" y="87" width="30" height="29" fill="#e2e8f0"/>
+          <!-- Row 5 -->
+          <rect x="0" y="116" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="60" y="116" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="120" y="116" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="180" y="116" width="30" height="29" fill="#e2e8f0"/>
+          <!-- Row 6 -->
+          <rect x="30" y="145" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="90" y="145" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="150" y="145" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="210" y="145" width="30" height="29" fill="#e2e8f0"/>
+          <!-- Row 7 -->
+          <rect x="0" y="174" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="60" y="174" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="120" y="174" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="180" y="174" width="30" height="29" fill="#e2e8f0"/>
+          <!-- Row 8 -->
+          <rect x="30" y="203" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="90" y="203" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="150" y="203" width="30" height="29" fill="#e2e8f0"/>
+          <rect x="210" y="203" width="30" height="29" fill="#e2e8f0"/>
+        </g>
+        <!-- Dark squares -->
+        <g fill="#475569">
+          <!-- Dark square highlights -->
+          <rect x="30" y="0" width="30" height="29"/>
+          <rect x="90" y="0" width="30" height="29"/>
+          <rect x="150" y="0" width="30" height="29"/>
+          <rect x="210" y="0" width="30" height="29"/>
+          <rect x="0" y="29" width="30" height="29"/>
+          <rect x="60" y="29" width="30" height="29"/>
+          <rect x="120" y="29" width="30" height="29"/>
+          <rect x="180" y="29" width="30" height="29"/>
+        </g>
+        <!-- Move vector highlight (f1 to c4) -->
+        <path d="M 165 217 L 75 130" stroke="#f59e0b" stroke-width="3" stroke-dasharray="4,4" stroke-linecap="round" />
+        <circle cx="75" cy="130" r="7" fill="#f59e0b" />
+        <circle cx="165" cy="217" r="5" fill="#f59e0b" />
+      </g>
+    </g>
+  </g>
+
+  <!-- Middle Card: Nebium Transformer Core -->
+  <g transform="translate(420, 180)" filter="url(#shadow)">
+    <rect width="360" height="360" rx="16" fill="url(#cardGrad)" stroke="#6366f1" stroke-width="2" />
+    <rect x="24" y="20" width="130" height="24" rx="12" fill="url(#accentGrad)"/>
+    <text x="89" y="36" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" text-anchor="middle">NEBIUM CORE</text>
+    <text x="24" y="70" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="18" font-weight="700">Causal Self-Attention</text>
+
+    <!-- Token Stream Box -->
+    <g transform="translate(24, 90)">
+      <rect width="312" height="42" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="26" fill="#a855f7" font-family="'JetBrains Mono', monospace" font-size="11">&lt;BOS&gt;</text>
+      <text x="68" y="26" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">e2e4</text>
+      <text x="120" y="26" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">e7e5</text>
+      <text x="172" y="26" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">g1f3</text>
+      <text x="224" y="26" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">b8c6</text>
+      <rect x="274" y="8" width="28" height="26" rx="4" fill="#f59e0b" fill-opacity="0.2" stroke="#f59e0b" stroke-width="1"/>
+      <text x="288" y="25" fill="#f59e0b" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700" text-anchor="middle">?</text>
+    </g>
+
+    <!-- Architecture Layers Stack -->
+    <g transform="translate(24, 150)">
+      <rect width="312" height="34" rx="6" fill="#1e1b4b" stroke="#4f46e5" stroke-width="1"/>
+      <text x="156" y="22" fill="#c7d2fe" font-family="'IBM Plex Sans', sans-serif" font-size="13" font-weight="600" text-anchor="middle">Rotary Position Embedding (RoPE)</text>
+    </g>
+    <g transform="translate(24, 192)">
+      <rect width="312" height="34" rx="6" fill="#1e1b4b" stroke="#4f46e5" stroke-width="1"/>
+      <text x="156" y="22" fill="#c7d2fe" font-family="'IBM Plex Sans', sans-serif" font-size="13" font-weight="600" text-anchor="middle">RMSNorm + Causal Multi-Head Attention</text>
+    </g>
+    <g transform="translate(24, 234)">
+      <rect width="312" height="34" rx="6" fill="#1e1b4b" stroke="#4f46e5" stroke-width="1"/>
+      <text x="156" y="22" fill="#c7d2fe" font-family="'IBM Plex Sans', sans-serif" font-size="13" font-weight="600" text-anchor="middle">RMSNorm + SwiGLU FFN (w_gate, w_up, w_down)</text>
+    </g>
+    <g transform="translate(24, 276)">
+      <rect width="312" height="34" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="156" y="22" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="12" text-anchor="middle">LM Head Projection (5,000 Vocab)</text>
+    </g>
+    <g transform="translate(24, 322)">
+      <text x="0" y="16" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="11">Context: 512 | Heads: 8 | Layers: 6</text>
+    </g>
+  </g>
+
+  <!-- Right Card: Candidate Probabilities & Legality -->
+  <g transform="translate(820, 180)" filter="url(#shadow)">
+    <rect width="320" height="360" rx="16" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
+    <text x="24" y="36" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="16" font-weight="600">Predicted Next Moves</text>
+    <text x="24" y="56" fill="#10b981" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="600">✓ Legal Move Rate: 99.2%</text>
+
+    <!-- Top Candidates Bars -->
+    <g transform="translate(24, 85)">
+      <!-- Move 1: f1c4 -->
+      <text x="0" y="18" fill="#f8fafc" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600">f1c4 (Italian)</text>
+      <text x="272" y="18" fill="#a855f7" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700" text-anchor="end">48.2%</text>
+      <rect x="0" y="26" width="272" height="10" rx="5" fill="#334155"/>
+      <rect x="0" y="26" width="131" height="10" rx="5" fill="url(#accentGrad)"/>
+    </g>
+
+    <g transform="translate(24, 145)">
+      <!-- Move 2: f1b5 -->
+      <text x="0" y="18" fill="#f8fafc" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600">f1b5 (Ruy Lopez)</text>
+      <text x="272" y="18" fill="#6366f1" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700" text-anchor="end">31.5%</text>
+      <rect x="0" y="26" width="272" height="10" rx="5" fill="#334155"/>
+      <rect x="0" y="26" width="86" height="10" rx="5" fill="#6366f1"/>
+    </g>
+
+    <g transform="translate(24, 205)">
+      <!-- Move 3: d2d4 -->
+      <text x="0" y="18" fill="#f8fafc" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600">d2d4 (Scotch)</text>
+      <text x="272" y="18" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700" text-anchor="end">12.1%</text>
+      <rect x="0" y="26" width="272" height="10" rx="5" fill="#334155"/>
+      <rect x="0" y="26" width="33" height="10" rx="5" fill="#38bdf8"/>
+    </g>
+
+    <g transform="translate(24, 265)">
+      <!-- Move 4: c2c3 -->
+      <text x="0" y="18" fill="#f8fafc" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600">c2c3 (Ponziani)</text>
+      <text x="272" y="18" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700" text-anchor="end">6.4%</text>
+      <rect x="0" y="26" width="272" height="10" rx="5" fill="#334155"/>
+      <rect x="0" y="26" width="17" height="10" rx="5" fill="#94a3b8"/>
+    </g>
+
+    <g transform="translate(24, 322)">
+      <rect width="272" height="24" rx="4" fill="#059669" fill-opacity="0.15" stroke="#059669" stroke-width="1"/>
+      <text x="136" y="16" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="11" text-anchor="middle">Illegal Move Probability: &lt; 0.05%</text>
+    </g>
+  </g>
+</svg>

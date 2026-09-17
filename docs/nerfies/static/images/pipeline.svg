@@ -1,0 +1,177 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 650" width="100%" height="100%">
+  <defs>
+    <linearGradient id="pBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="pCard" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="blueCard" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0.05" />
+    </linearGradient>
+    <linearGradient id="purpleCard" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.05" />
+    </linearGradient>
+    <linearGradient id="greenCard" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#047857" stop-opacity="0.05" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="650" rx="16" fill="url(#pBg)" />
+
+  <!-- Flow Arrows connecting stages -->
+  <g stroke="#475569" stroke-width="2" stroke-dasharray="6,6" fill="none">
+    <path d="M 270 330 L 310 330" marker-end="url(#arrow)"/>
+    <path d="M 590 330 L 630 330" />
+    <path d="M 910 330 L 950 330" />
+  </g>
+
+  <!-- Stage 1: Data Ingestion -->
+  <g transform="translate(40, 50)">
+    <rect width="240" height="550" rx="14" fill="url(#blueCard)" stroke="#3b82f6" stroke-width="1.5" />
+    <rect x="18" y="20" width="80" height="24" rx="6" fill="#3b82f6" />
+    <text x="58" y="36" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" text-anchor="middle">STAGE 1</text>
+    <text x="18" y="70" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="18" font-weight="700">Data Pipeline</text>
+    <text x="18" y="92" fill="#94a3b8" font-family="'IBM Plex Sans', sans-serif" font-size="12">Lichess Corpus &amp; Filtering</text>
+
+    <!-- Sub boxes -->
+    <g transform="translate(18, 120)">
+      <rect width="204" height="74" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="24" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700">Lichess Database</text>
+      <text x="14" y="44" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">245,293 Standard Games</text>
+      <text x="14" y="62" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="10">zstandard stream reader</text>
+    </g>
+
+    <g transform="translate(18, 210)">
+      <rect width="204" height="74" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="24" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700">Sanity Filtering</text>
+      <text x="14" y="44" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">min_moves ≥ 20 plies</text>
+      <text x="14" y="62" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="10">Removes short/aborted games</text>
+    </g>
+
+    <g transform="translate(18, 300)">
+      <rect width="204" height="84" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="24" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700">UCI Representation</text>
+      <text x="14" y="44" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">Canonical string format</text>
+      <text x="14" y="64" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="11">"e2e4 e7e5 g1f3..."</text>
+    </g>
+
+    <g transform="translate(18, 400)">
+      <rect width="204" height="84" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="24" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700">Sequence Packing</text>
+      <text x="14" y="44" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">Packs games into 512-token chunks</text>
+      <text x="14" y="64" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="10">&lt;bos&gt; / &lt;sep&gt; / &lt;eos&gt; / &lt;pad&gt;</text>
+    </g>
+  </g>
+
+  <!-- Stage 2: Tokenization & Token Embeddings -->
+  <g transform="translate(320, 50)">
+    <rect width="280" height="550" rx="14" fill="url(#pCard)" stroke="#475569" stroke-width="1.5" />
+    <rect x="18" y="20" width="80" height="24" rx="6" fill="#6366f1" />
+    <text x="58" y="36" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" text-anchor="middle">STAGE 2</text>
+    <text x="18" y="70" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="18" font-weight="700">Chess BPE Tokenizer</text>
+    <text x="18" y="92" fill="#94a3b8" font-family="'IBM Plex Sans', sans-serif" font-size="12">Domain-Optimized Vocabulary</text>
+
+    <g transform="translate(18, 120)">
+      <rect width="244" height="90" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="24" fill="#a5b4fc" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="600">BPE Vocabulary: 5,000</text>
+      <text x="14" y="46" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">Whitespace pre-tokenized on moves</text>
+      <text x="14" y="68" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="11">Frequent lines merged into 1 token</text>
+    </g>
+
+    <g transform="translate(18, 230)">
+      <rect width="244" height="150" rx="8" fill="#0f172a" stroke="#4f46e5" stroke-width="1"/>
+      <text x="14" y="26" fill="#818cf8" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">Rotary Position (RoPE)</text>
+      <text x="14" y="50" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">Relative position encoding applied to Q &amp; K</text>
+      <text x="14" y="74" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">Preserves order in long opening &amp; endgame lines</text>
+      <rect x="14" y="95" width="216" height="34" rx="4" fill="#1e1b4b"/>
+      <text x="122" y="117" fill="#a5b4fc" font-family="'JetBrains Mono', monospace" font-size="11" text-anchor="middle">q_rot = R_θ(m) * q</text>
+    </g>
+
+    <g transform="translate(18, 400)">
+      <rect width="244" height="84" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="24" fill="#a5b4fc" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="600">Context Window</text>
+      <text x="14" y="46" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">max_seq_len: 512 tokens</text>
+      <text x="14" y="68" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="11">Covers ~8-12 full games per chunk</text>
+    </g>
+  </g>
+
+  <!-- Stage 3: Nebium Transformer Core Architecture -->
+  <g transform="translate(640, 50)">
+    <rect width="280" height="550" rx="14" fill="url(#purpleCard)" stroke="#a855f7" stroke-width="1.5" />
+    <rect x="18" y="20" width="80" height="24" rx="6" fill="#a855f7" />
+    <text x="58" y="36" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" text-anchor="middle">STAGE 3</text>
+    <text x="18" y="70" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="18" font-weight="700">Nebium Transformer</text>
+    <text x="18" y="92" fill="#94a3b8" font-family="'IBM Plex Sans', sans-serif" font-size="12">Modern Transformer Architecture</text>
+
+    <!-- Block Stack -->
+    <g transform="translate(18, 120)">
+      <rect width="244" height="260" rx="8" fill="#1e1b4b" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="14" y="26" fill="#e9d5ff" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">Transformer Block (× 6)</text>
+
+      <rect x="14" y="42" width="216" height="34" rx="4" fill="#0f172a" stroke="#6b21a8" stroke-width="1"/>
+      <text x="122" y="64" fill="#d8b4fe" font-family="'IBM Plex Sans', sans-serif" font-size="11" text-anchor="middle">Pre-RMSNorm (d_model=512)</text>
+
+      <rect x="14" y="86" width="216" height="46" rx="4" fill="#0f172a" stroke="#6b21a8" stroke-width="1"/>
+      <text x="122" y="106" fill="#d8b4fe" font-family="'IBM Plex Sans', sans-serif" font-size="11" font-weight="600" text-anchor="middle">Causal Self-Attention (8 Heads)</text>
+      <text x="122" y="122" fill="#a855f7" font-family="'JetBrains Mono', monospace" font-size="10" text-anchor="middle">Q, K, V + RoPE + Residual</text>
+
+      <rect x="14" y="142" width="216" height="34" rx="4" fill="#0f172a" stroke="#6b21a8" stroke-width="1"/>
+      <text x="122" y="164" fill="#d8b4fe" font-family="'IBM Plex Sans', sans-serif" font-size="11" text-anchor="middle">Pre-RMSNorm</text>
+
+      <rect x="14" y="186" width="216" height="58" rx="4" fill="#0f172a" stroke="#6b21a8" stroke-width="1"/>
+      <text x="122" y="206" fill="#d8b4fe" font-family="'IBM Plex Sans', sans-serif" font-size="11" font-weight="600" text-anchor="middle">SwiGLU Feed-Forward Network</text>
+      <text x="122" y="224" fill="#c084fc" font-family="'JetBrains Mono', monospace" font-size="10" text-anchor="middle">w_down(SiLU(w_gate(x)) * w_up(x))</text>
+    </g>
+
+    <!-- Final Projection -->
+    <g transform="translate(18, 400)">
+      <rect width="244" height="84" rx="8" fill="#1e1b4b" stroke="#7c3aed" stroke-width="1"/>
+      <text x="14" y="24" fill="#e9d5ff" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">Final Head</text>
+      <text x="14" y="46" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">Final RMSNorm</text>
+      <text x="14" y="68" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="12">Linear LM Head (d_model → 5000)</text>
+    </g>
+  </g>
+
+  <!-- Stage 4: Training & Artifacts Ecosystem -->
+  <g transform="translate(960, 50)">
+    <rect width="200" height="550" rx="14" fill="url(#greenCard)" stroke="#10b981" stroke-width="1.5" />
+    <rect x="18" y="20" width="80" height="24" rx="6" fill="#10b981" />
+    <text x="58" y="36" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" text-anchor="middle">STAGE 4</text>
+    <text x="18" y="70" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="18" font-weight="700">Deployment</text>
+    <text x="18" y="92" fill="#94a3b8" font-family="'IBM Plex Sans', sans-serif" font-size="12">Kaggle, WandB, GGUF</text>
+
+    <g transform="translate(14, 120)">
+      <rect width="172" height="76" rx="8" fill="#0f172a" stroke="#059669" stroke-width="1"/>
+      <text x="10" y="24" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700">Kaggle Engine</text>
+      <text x="10" y="44" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="11">Auto-detected secrets</text>
+      <text x="10" y="62" fill="#6ee7b7" font-family="'JetBrains Mono', monospace" font-size="10">FP16 mixed precision</text>
+    </g>
+
+    <g transform="translate(14, 210)">
+      <rect width="172" height="76" rx="8" fill="#0f172a" stroke="#059669" stroke-width="1"/>
+      <text x="10" y="24" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700">WandB Tracking</text>
+      <text x="10" y="44" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="11">Per-epoch evaluations</text>
+      <text x="10" y="62" fill="#6ee7b7" font-family="'JetBrains Mono', monospace" font-size="10">Interactive sample tables</text>
+    </g>
+
+    <g transform="translate(14, 300)">
+      <rect width="172" height="76" rx="8" fill="#0f172a" stroke="#059669" stroke-width="1"/>
+      <text x="10" y="24" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700">GGUF v3 Model</text>
+      <text x="10" y="44" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="11">FP16 / FP32 binary</text>
+      <text x="10" y="62" fill="#6ee7b7" font-family="'JetBrains Mono', monospace" font-size="10">llama.cpp / local run</text>
+    </g>
+
+    <g transform="translate(14, 390)">
+      <rect width="172" height="76" rx="8" fill="#0f172a" stroke="#059669" stroke-width="1"/>
+      <text x="10" y="24" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700">Hugging Face</text>
+      <text x="10" y="44" fill="#cbd5e1" font-family="'IBM Plex Sans', sans-serif" font-size="11">Automated upload</text>
+      <text x="10" y="62" fill="#6ee7b7" font-family="'JetBrains Mono', monospace" font-size="10">Model cards + Tokenizer</text>
+    </g>
+  </g>
+</svg>

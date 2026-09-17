@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="qBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="qCard1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#1e293b" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="qCard2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#1e293b" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="qCard3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#1e293b" stop-opacity="0.8" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="500" rx="16" fill="url(#qBg)" />
+
+  <text x="60" y="50" fill="#ffffff" font-family="'IBM Plex Sans', sans-serif" font-size="24" font-weight="700">Evolution of Autoregressive Chess Intelligence</text>
+  <text x="60" y="75" fill="#94a3b8" font-family="'IBM Plex Sans', sans-serif" font-size="14">Sample continuations generated across training epochs from standard starting position.</text>
+
+  <!-- Epoch 1 Card -->
+  <g transform="translate(60, 110)">
+    <rect width="340" height="340" rx="14" fill="url(#qCard1)" stroke="#ef4444" stroke-width="1.5" />
+    <rect x="20" y="20" width="100" height="24" rx="6" fill="#ef4444" />
+    <text x="70" y="36" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" text-anchor="middle">EPOCH 1</text>
+    <text x="20" y="72" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="18" font-weight="700">Random Exploration</text>
+
+    <g transform="translate(20, 95)">
+      <text x="0" y="16" fill="#fca5a5" font-family="'JetBrains Mono', monospace" font-size="12">Legal Move Rate: 3.4%</text>
+      <text x="0" y="36" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="12">Val Loss: 4.97 | PPL: 144.1</text>
+    </g>
+
+    <g transform="translate(20, 155)">
+      <rect width="300" height="155" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="24" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="11">Prompt: [start]</text>
+      <text x="14" y="52" fill="#ef4444" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="600">Generated Moves:</text>
+      <text x="14" y="78" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">d5f4 <tspan fill="#ef4444">(✗ illegal)</tspan></text>
+      <text x="14" y="98" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">d8f6 <tspan fill="#ef4444">(✗ illegal)</tspan></text>
+      <text x="14" y="118" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">b1d2 <tspan fill="#10b981">(✓ legal)</tspan></text>
+      <text x="14" y="138" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="10">Model lacks board geometry concept</text>
+    </g>
+  </g>
+
+  <!-- Epoch 5 Card -->
+  <g transform="translate(430, 110)">
+    <rect width="340" height="340" rx="14" fill="url(#qCard2)" stroke="#f59e0b" stroke-width="1.5" />
+    <rect x="20" y="20" width="100" height="24" rx="6" fill="#f59e0b" />
+    <text x="70" y="36" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" text-anchor="middle">EPOCH 5</text>
+    <text x="20" y="72" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="18" font-weight="700">Rule Internalization</text>
+
+    <g transform="translate(20, 95)">
+      <text x="0" y="16" fill="#fde68a" font-family="'JetBrains Mono', monospace" font-size="12">Legal Move Rate: 74.2%</text>
+      <text x="0" y="36" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="12">Val Loss: 2.45 | PPL: 11.6</text>
+    </g>
+
+    <g transform="translate(20, 155)">
+      <rect width="300" height="155" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="14" y="24" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="11">Prompt: [start]</text>
+      <text x="14" y="52" fill="#f59e0b" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="600">Generated Moves:</text>
+      <text x="14" y="78" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">e2e4 <tspan fill="#10b981">(✓)</tspan> e7e5 <tspan fill="#10b981">(✓)</tspan> g1f3 <tspan fill="#10b981">(✓)</tspan></text>
+      <text x="14" y="98" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">b8c6 <tspan fill="#10b981">(✓)</tspan> f1b5 <tspan fill="#10b981">(✓)</tspan> a7a6 <tspan fill="#10b981">(✓)</tspan></text>
+      <text x="14" y="118" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">b5a4 <tspan fill="#10b981">(✓)</tspan> d7d5 <tspan fill="#10b981">(✓)</tspan> ...</text>
+      <text x="14" y="138" fill="#fde68a" font-family="'JetBrains Mono', monospace" font-size="10">Solid opening; minor endgame drift</text>
+    </g>
+  </g>
+
+  <!-- Epoch 20 Card -->
+  <g transform="translate(800, 110)">
+    <rect width="340" height="340" rx="14" fill="url(#qCard3)" stroke="#10b981" stroke-width="2" />
+    <rect x="20" y="20" width="100" height="24" rx="6" fill="#10b981" />
+    <text x="70" y="36" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" text-anchor="middle">EPOCH 20</text>
+    <text x="20" y="72" fill="#f8fafc" font-family="'IBM Plex Sans', sans-serif" font-size="18" font-weight="700">Grandmaster Fluency</text>
+
+    <g transform="translate(20, 95)">
+      <text x="0" y="16" fill="#6ee7b7" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">Legal Move Rate: 98.9%</text>
+      <text x="0" y="36" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="12">Val Loss: 1.82 | PPL: 6.17</text>
+    </g>
+
+    <g transform="translate(20, 155)">
+      <rect width="300" height="155" rx="8" fill="#0f172a" stroke="#059669" stroke-width="1"/>
+      <text x="14" y="24" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="11">Prompt: "e2e4" (Sicilian Response)</text>
+      <text x="14" y="52" fill="#10b981" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="600">Generated Moves:</text>
+      <text x="14" y="78" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">c7c5 g1f3 d7d6 d2d4 c5d4</text>
+      <text x="14" y="98" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">f3d4 g8f6 b1c3 a7a6 (Najdorf)</text>
+      <text x="14" y="118" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-size="11">f1e2 e7e5 d4b3 f8e7 ...</text>
+      <text x="14" y="138" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="10">Deep tactical coherence &amp; king safety</text>
+    </g>
+  </g>
+</svg>
