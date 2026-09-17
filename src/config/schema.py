@@ -58,6 +58,12 @@ class TrainingConfig:
     gradient_clipping: float = 1.0
     early_stopping_patience: int = 5
     resume_from: Optional[str] = None
+    eval_samples: bool = True
+    sample_prompts: list[str] = field(default_factory=lambda: ["", "e2e4", "d2d4"])
+    sample_max_moves: int = 20
+    sample_temperature: float = 0.7
+    export_gguf: bool = True
+    gguf_precision: str = "fp16"
 
 
 @dataclass
@@ -65,13 +71,21 @@ class LoggingConfig:
     backend: str = "wandb"
     mode: str = "online"
     project: str = "nebium"
+    entity: Optional[str] = None
+    run_name: Optional[str] = None
+    tags: list[str] = field(default_factory=list)
+    notes: Optional[str] = None
 
 
 @dataclass
 class HubConfig:
     repo_id: Optional[str] = None
     private: bool = True
+    push: bool = False
     push_on_epoch: bool = False
+    commit_message: str = "Add Nebium checkpoint"
+    export_gguf: bool = True
+    gguf_precision: str = "fp16"
 
 
 @dataclass

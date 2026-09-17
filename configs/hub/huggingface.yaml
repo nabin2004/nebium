@@ -1,4 +1,6 @@
 push: true
 repo_id: null
 private: true
-commit_message: Add Nebium checkpoint
+commit_message: Add Nebium checkpoint and GGUF model
+export_gguf: true
+gguf_precision: fp16

@@ -92,10 +92,11 @@ def test_end_to_end_integration():
         from src.logging.factory import build_logger
         logger = build_logger(cfg)
         
-        metrics = run_training(model, train_loader, val_loader, cfg, logger)
+        metrics = run_training(model, train_loader, val_loader, cfg, logger, tokenizer=tokenizer)
         
         assert "val/loss" in metrics
         assert "epoch" in metrics
+        assert "val/legal_move_rate" in metrics
         
         # 6. Generate
         model.eval()

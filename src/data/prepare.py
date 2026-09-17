@@ -138,7 +138,7 @@ def prepare_corpus(cfg: DictConfig, root: str | Path | None = None) -> tuple[lis
 
 def get_tokenizer(
     cfg: DictConfig,
-    sequences: list[str],
+    sequences: list[str] | None = None,
     root: str | Path | None = None,
     corpus_rebuilt: bool = False,
 ) -> ChessTokenizer:
@@ -153,6 +153,8 @@ def get_tokenizer(
         return tokenizer
 
     if not moves_path.exists():
+        if sequences is None:
+            raise ValueError(f"Tokenizer not found at {tokenizer_path} and no sequences provided to train one.")
         moves_path.parent.mkdir(parents=True, exist_ok=True)
         moves_path.write_text("\n".join(sequences) + "\n", encoding="utf-8")
 

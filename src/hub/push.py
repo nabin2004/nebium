@@ -6,9 +6,10 @@ from huggingface_hub import HfApi
 from omegaconf import DictConfig, OmegaConf
 
 from src.data.tokenizer import ChessTokenizer
+from src.export.gguf_export import export_to_gguf
 
 
-def _model_card(cfg: DictConfig, metrics: dict[str, float]) -> str:
+def _model_card(cfg: DictConfig, metrics: dict[str, float], has_gguf: bool = False) -> str:
     lines = [
         "---",
         "library_name: pytorch",
@@ -16,6 +17,7 @@ def _model_card(cfg: DictConfig, metrics: dict[str, float]) -> str:
         "- chess",
         "- causal-lm",
         "- nebium",
+        "- gguf",
         "---",
         "",
         "# Nebium",
@@ -33,10 +35,21 @@ def _model_card(cfg: DictConfig, metrics: dict[str, float]) -> str:
         f"- activation: {cfg.model.get('activation', 'swiglu')}",
         f"- norm: {cfg.model.get('norm', 'rmsnorm')}",
         "",
+        "## Artifacts & Formats",
+        "",
+        "- `model.pt`: Raw PyTorch state_dict",
+        "- `model_config.json`: Architecture configuration",
+        "- `tokenizer.json`: BPE Chess tokenizer",
+    ]
+    if has_gguf:
+        lines.append("- `nebium.gguf`: GGUF format model for local inference and quantization")
+
+    lines.extend([
+        "",
         "## Last validation metrics",
         "",
-    ]
-    for key in ("val/loss", "val/accuracy", "val/top5_accuracy", "val/perplexity"):
+    ])
+    for key in ("val/loss", "val/accuracy", "val/top5_accuracy", "val/perplexity", "val/legal_move_rate"):
         if key in metrics:
             lines.append(f"- `{key}`: {metrics[key]}")
     lines.append("")
@@ -55,7 +68,17 @@ def export_checkpoint(
     config = OmegaConf.to_container(cfg.model, resolve=True)
     (export_dir / "model_config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     tokenizer.save(str(export_dir / "tokenizer.json"))
-    (export_dir / "README.md").write_text(_model_card(cfg, metrics), encoding="utf-8")
+
+    has_gguf = False
+    if bool(cfg.hub.get("export_gguf", True)):
+        try:
+            gguf_path = export_dir / "nebium.gguf"
+            export_to_gguf(model, tokenizer, gguf_path, precision=str(cfg.hub.get("gguf_precision", "fp16")))
+            has_gguf = True
+        except Exception as exc:
+            print(f"[Hub Export] Warning: Failed to export GGUF: {exc}")
+
+    (export_dir / "README.md").write_text(_model_card(cfg, metrics, has_gguf=has_gguf), encoding="utf-8")
     return export_dir
 
 

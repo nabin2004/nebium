@@ -1,4 +1,7 @@
 import math
+import os
+import time
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -7,32 +10,44 @@ from torch.amp import GradScaler, autocast
 from torch.optim.lr_scheduler import LambdaLR
 from tqdm import tqdm
 
-import os
-import time
-
+from src.evaluation.chess_metrics import generate_sample_games
 from src.evaluation.metrics import merge_metric_batches, next_token_metrics
 from src.logging.base import Logger
 
 
-def save_checkpoint(path: str, model: torch.nn.Module, optimizer: torch.optim.Optimizer, scheduler: LambdaLR | None, epoch: int, global_step: int, scaler: GradScaler):
+def save_checkpoint(
+    path: str,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: LambdaLR | None,
+    epoch: int,
+    global_step: int,
+    scaler: GradScaler,
+):
     state = {
         "model": model.state_dict(),
         "optimizer": optimizer.state_dict(),
         "scheduler": scheduler.state_dict() if scheduler else None,
         "epoch": epoch,
         "global_step": global_step,
-        "scaler": scaler.state_dict()
+        "scaler": scaler.state_dict() if scaler else None,
     }
     torch.save(state, path)
 
 
-def load_checkpoint(path: str, model: torch.nn.Module, optimizer: torch.optim.Optimizer, scheduler: LambdaLR | None, scaler: GradScaler) -> tuple[int, int]:
+def load_checkpoint(
+    path: str,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: LambdaLR | None,
+    scaler: GradScaler,
+) -> tuple[int, int]:
     state = torch.load(path, map_location="cpu")
     model.load_state_dict(state["model"])
     optimizer.load_state_dict(state["optimizer"])
-    if scheduler and state["scheduler"]:
+    if scheduler and state.get("scheduler"):
         scheduler.load_state_dict(state["scheduler"])
-    if "scaler" in state and scaler:
+    if "scaler" in state and state["scaler"] and scaler:
         scaler.load_state_dict(state["scaler"])
     return state.get("epoch", 0), state.get("global_step", 0)
 
@@ -87,7 +102,14 @@ def evaluate(model: torch.nn.Module, val_loader, device: torch.device, use_amp: 
     return merge_metric_batches(batches)
 
 
-def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConfig, logger: Logger) -> dict[str, float]:
+def run_training(
+    model: torch.nn.Module,
+    train_loader,
+    val_loader,
+    cfg: DictConfig,
+    logger: Logger,
+    tokenizer: Any = None,
+) -> dict[str, float]:
     device = _device()
     model = model.to(device)
     use_amp = cfg.training.mixed_precision == "fp16" and device.type == "cuda"
@@ -126,10 +148,10 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
-            
+
             # Count valid tokens for throughput
             tokens_processed += int((labels != -100).sum().item())
-            
+
             with autocast("cuda", enabled=use_amp):
                 logits = model(input_ids, attention_mask)
                 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1), ignore_index=-100)
@@ -138,9 +160,10 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
             running += float(loss.item()) * accum
 
             if step % accum == 0 or step == len(train_loader):
-                if cfg.training.gradient_clipping > 0.0:
+                grad_clip = float(cfg.training.get("gradient_clipping", 1.0))
+                if grad_clip > 0.0:
                     scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.training.gradient_clipping)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad(set_to_none=True)
@@ -153,18 +176,75 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
 
         elapsed = time.time() - start_time
         metrics = evaluate(model, val_loader, device, use_amp)
-        
+
         last_metrics = {
             **metrics,
             "epoch": epoch + 1,
             "train/throughput_tokens_sec": tokens_processed / elapsed if elapsed > 0 else 0.0,
         }
-        
+
         if torch.cuda.is_available():
-            last_metrics["train/gpu_mem_mb"] = torch.cuda.max_memory_allocated() / (1024 ** 2)
+            last_metrics["train/gpu_mem_mb"] = torch.cuda.max_memory_allocated() / (1024**2)
             torch.cuda.reset_peak_memory_stats()
-            
+
+        # Generate sample chess moves if tokenizer is provided
+        samples: list[dict[str, Any]] = []
+        overall_legal_rate = 0.0
+        if tokenizer is not None and bool(cfg.training.get("eval_samples", True)):
+            raw_prompts = cfg.training.get("sample_prompts", ["", "e2e4", "d2d4"])
+            sample_prompts = list(raw_prompts) if raw_prompts else ["", "e2e4", "d2d4"]
+            max_moves = int(cfg.training.get("sample_max_moves", 20))
+            temp = float(cfg.training.get("sample_temperature", 0.7))
+            samples = generate_sample_games(
+                model=model,
+                tokenizer=tokenizer,
+                device=device,
+                prompts=sample_prompts,
+                max_moves=max_moves,
+                temperature=temp,
+            )
+            total_legal = sum(s["legal_moves"] for s in samples)
+            total_moves = sum(s["total_moves"] for s in samples)
+            overall_legal_rate = (total_legal / total_moves) if total_moves > 0 else 0.0
+            last_metrics["val/legal_move_rate"] = overall_legal_rate
+
         logger.log_metrics(last_metrics, step=global_step)
+
+        # Log samples table to WandB if supported
+        if samples and hasattr(logger, "log_table"):
+            table_cols = ["epoch", "prompt", "generated_moves", "legal_moves", "total_moves", "legal_rate"]
+            table_rows = [
+                [epoch + 1, s["prompt"], s["generated"], s["legal_moves"], s["total_moves"], s["legal_rate"]]
+                for s in samples
+            ]
+            logger.log_table("eval/sample_generations", table_cols, table_rows, step=global_step)
+
+        # Terminal inspection block after each loop/epoch
+        train_loss_epoch = running / max(1, len(train_loader))
+        val_loss = metrics.get("val/loss", float("nan"))
+        val_acc = metrics.get("val/accuracy", float("nan"))
+        val_top5 = metrics.get("val/top5_accuracy", float("nan"))
+        val_ppl = metrics.get("val/perplexity", float("nan"))
+        lr = optimizer.param_groups[0]["lr"]
+        throughput = tokens_processed / elapsed if elapsed > 0 else 0.0
+
+        print("\n" + "=" * 78)
+        print(f"  [EPOCH {epoch + 1}/{cfg.training.epochs} EVALUATION SUMMARY]")
+        print("-" * 78)
+        print(f"  Train Loss: {train_loss_epoch:.4f}  |  Val Loss: {val_loss:.4f}  |  Val PPL: {val_ppl:.2f}")
+        print(f"  Top-1 Acc:  {val_acc * 100:.2f}%  |  Top-5 Acc: {val_top5 * 100:.2f}%  |  Legal Moves: {overall_legal_rate * 100:.2f}%")
+        print(f"  Throughput: {throughput:,.0f} tok/s  |  LR: {lr:.2e}")
+        if samples:
+            print("-" * 78)
+            print("  SAMPLE GENERATIONS (Epoch Progress Inspection):")
+            for idx, s in enumerate(samples, start=1):
+                prompt_disp = s["prompt"] if s["prompt"] else "[empty board]"
+                gen_disp = s["generated"] if s["generated"] else "[no moves generated]"
+                pct_disp = f"{s['legal_rate'] * 100:.1f}%" if s["total_moves"] > 0 else "N/A"
+                print(f"    ({idx}) Prompt: '{prompt_disp}'")
+                print(f"        -> Moves ({s['legal_moves']}/{s['total_moves']} legal, {pct_disp}): {gen_disp}")
+        print("=" * 78 + "\n")
+
         progress.set_postfix(
             loss=running / max(1, len(train_loader)),
             acc=metrics["val/accuracy"],
@@ -173,14 +253,14 @@ def run_training(model: torch.nn.Module, train_loader, val_loader, cfg: DictConf
         )
         save_checkpoint("checkpoint.pt", model, optimizer, scheduler, epoch + 1, global_step, scaler)
 
-        val_loss = metrics.get("val/loss", float("inf"))
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
             save_checkpoint("best_model.pt", model, optimizer, scheduler, epoch + 1, global_step, scaler)
         else:
             patience_counter += 1
-            if patience_counter >= cfg.training.early_stopping_patience:
+            patience = int(cfg.training.get("early_stopping_patience", 5))
+            if patience_counter >= patience:
                 print(f"Early stopping triggered after {epoch + 1} epochs")
                 break
 

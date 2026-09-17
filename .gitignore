@@ -12,7 +12,7 @@ wheels/
 # Experiment outputs
 wandb/
 outputs/
-export/
+/export/
 
 # Heavy local datasets
 data/raw/
