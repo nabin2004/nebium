@@ -10,7 +10,8 @@ from torch.amp import GradScaler, autocast
 from torch.optim.lr_scheduler import LambdaLR
 from tqdm import tqdm
 
-from src.evaluation.chess_metrics import generate_sample_games
+import json
+from src.evaluation.chess_metrics import generate_sample_games, evaluate_puzzles
 from src.evaluation.metrics import merge_metric_batches, next_token_metrics
 from src.logging.base import Logger
 
@@ -132,6 +133,16 @@ def run_training(
         else:
             print(f"Checkpoint not found at {resume_path}, starting from scratch.")
 
+    puzzles_dataset = []
+    if cfg.training.get("eval_puzzles", False):
+        puzzle_path = cfg.training.get("puzzle_path", "data/fixtures/puzzles.jsonl")
+        if os.path.exists(puzzle_path):
+            with open(puzzle_path, "r", encoding="utf-8") as f:
+                puzzles_dataset = [json.loads(line) for line in f if line.strip()]
+            print(f"Loaded {len(puzzles_dataset)} puzzles for evaluation.")
+        else:
+            print(f"Puzzle dataset not found at {puzzle_path}")
+
     last_metrics: dict[str, float] = {}
     optimizer.zero_grad(set_to_none=True)
 
@@ -208,6 +219,13 @@ def run_training(
             overall_legal_rate = (total_legal / total_moves) if total_moves > 0 else 0.0
             last_metrics["val/legal_move_rate"] = overall_legal_rate
 
+        # Evaluate puzzles if loaded
+        puzzle_acc = 0.0
+        if puzzles_dataset and tokenizer is not None:
+            puzzle_metrics = evaluate_puzzles(model, tokenizer, device, puzzles_dataset)
+            last_metrics.update(puzzle_metrics)
+            puzzle_acc = puzzle_metrics.get("val/puzzle_accuracy", 0.0)
+
         logger.log_metrics(last_metrics, step=global_step)
 
         # Log samples table to WandB if supported
@@ -234,6 +252,8 @@ def run_training(
         print(f"  Train Loss: {train_loss_epoch:.4f}  |  Val Loss: {val_loss:.4f}  |  Val PPL: {val_ppl:.2f}")
         print(f"  Top-1 Acc:  {val_acc * 100:.2f}%  |  Top-5 Acc: {val_top5 * 100:.2f}%  |  Legal Moves: {overall_legal_rate * 100:.2f}%")
         print(f"  Throughput: {throughput:,.0f} tok/s  |  LR: {lr:.2e}")
+        if puzzles_dataset:
+            print(f"  Puzzle Acc: {puzzle_acc * 100:.2f}%")
         if samples:
             print("-" * 78)
             print("  SAMPLE GENERATIONS (Epoch Progress Inspection):")

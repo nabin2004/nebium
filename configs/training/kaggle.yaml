@@ -10,6 +10,8 @@ mixed_precision: fp16
 gradient_clipping: 1.0
 early_stopping_patience: 5
 eval_samples: true
+eval_puzzles: true
+puzzle_path: "data/fixtures/puzzles.jsonl"
 sample_prompts:
   - ""
   - "e2e4"

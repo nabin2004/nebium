@@ -24,3 +24,4 @@ data/tokenizer/
 # Checkpoints
 *.pt
 *.pth
+*.gguf

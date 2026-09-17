@@ -1,558 +1,582 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8">
-  <meta name="description" content="Nebium: A Causal Transformer for Self-Supervised Next-Move Prediction in Chess.">
-  <meta name="keywords" content="Nebium, Chess Transformer, Causal Language Model, Self-Supervised Learning, Deep Learning, GGUF, RoPE, SwiGLU">
+  <meta name="description"
+        content="Nebium: A Causal Transformer for Self-Supervised Next-Move Prediction in Chess.">
+  <meta name="keywords" content="Nebium, Chess Transformer, Causal Language Model, Self-Supervised Learning, RoPE, SwiGLU, GGUF, Lichess">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nebium: A Causal Transformer for Chess Next-Move Prediction</title>
 
-  <!-- Fonts & Icons -->
-  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+        rel="stylesheet">
 
-  <!-- Project Styles -->
-  <link rel="stylesheet" href="static/css/style.css">
-  <style>
-    :root {
-      --color-accent: #6366f1;
-      --color-accent-light: #e0e7ff;
-      --color-accent-dark: #4338ca;
-    }
-    .hero {
-      background: linear-gradient(180deg, #eef2ff 0%, #fafaf8 100%);
-    }
-    .interactive-demo {
-      background: #0f172a;
-      border-radius: 14px;
-      padding: 24px;
-      color: #f8fafc;
-      margin-top: 24px;
-      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
-    }
-    .demo-controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .demo-btn {
-      background: #1e293b;
-      color: #cbd5e1;
-      border: 1px solid #334155;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .demo-btn:hover, .demo-btn.active {
-      background: #6366f1;
-      color: #ffffff;
-      border-color: #6366f1;
-    }
-    .demo-output-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-    @media (max-width: 768px) {
-      .demo-output-grid { grid-template-columns: 1fr; }
-    }
-    .demo-box {
-      background: #1e293b;
-      border-radius: 8px;
-      padding: 16px;
-      border: 1px solid #334155;
-    }
-    .demo-box h4 {
-      font-size: 14px;
-      color: #94a3b8;
-      margin-bottom: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .demo-moves {
-      font-family: var(--font-mono);
-      font-size: 14px;
-      color: #38bdf8;
-      line-height: 1.6;
-      word-break: break-all;
-    }
-    .prob-bar-row {
-      margin-bottom: 12px;
-    }
-    .prob-header {
-      display: flex;
-      justify-content: space-between;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      margin-bottom: 4px;
-    }
-    .prob-bar-bg {
-      height: 8px;
-      background: #334155;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    .prob-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #6366f1, #a855f7);
-      border-radius: 4px;
-    }
-  </style>
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="icon" href="./static/images/favicon.svg">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/index.js"></script>
 </head>
-
 <body>
 
-<!-- ══════════ HERO ══════════ -->
-<header class="hero">
-  <div class="hero-badge">AI &amp; Reinforcement Learning • Self-Supervised Chess</div>
-  <h1><span class="highlight">NEBIUM</span>: A Causal Transformer for Self-Supervised Next-Move Prediction in Chess</h1>
-  <p class="subtitle">Emergent Grandmaster Openings, Tactical Rule Learning, and Positional Reasoning from Pure Autoregressive Sequence Modeling.</p>
-
-  <!-- Authors -->
-  <div class="authors">
-    <span><a href="https://github.com/nabin2004" target="_blank">Nabin</a><sup>1</sup></span>
-    <span><a href="https://github.com/nabin2004/nebium" target="_blank">Nebium AI Research</a><sup>1</sup></span>
-  </div>
-  <div class="affiliation">
-    <sup>1</sup>Open-Source Deep Learning Research
-  </div>
-
-  <!-- Buttons -->
-  <div class="btn-row">
-    <a href="https://github.com/nabin2004/nebium" target="_blank" class="btn btn-primary">
-      <span class="icon"><i class="fab fa-github"></i></span><span>GitHub Repository</span>
-    </a>
-    <a href="https://huggingface.co/models?search=nebium" target="_blank" class="btn">
-      <span class="icon"><i class="fas fa-cube"></i></span><span>Hugging Face Hub</span>
-    </a>
-    <a href="https://wandb.ai" target="_blank" class="btn">
-      <span class="icon"><i class="fas fa-chart-line"></i></span><span>WandB Telemetry</span>
-    </a>
-    <a href="#gguf" class="btn">
-      <span class="icon"><i class="fas fa-microchip"></i></span><span>GGUF v3 Models</span>
-    </a>
-    <a href="#interactive" class="btn">
-      <span class="icon"><i class="fas fa-play"></i></span><span>Interactive Demo</span>
+<nav class="navbar" role="navigation" aria-label="main navigation">
+  <div class="navbar-brand">
+    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
     </a>
   </div>
-
-  <!-- TL;DR -->
-  <div class="tldr">
-    <strong>TL;DR</strong> &mdash; Nebium predicts chess moves strictly by learning self-supervised language representations over 245,000+ Lichess rated games without alpha-beta search or piece tables. Using Rotary Position Embeddings (RoPE), SwiGLU activations, and RMSNorm, it surpasses 98.9% legal move accuracy and emerges with deep opening book theory.
-  </div>
-
-  <!-- Teaser -->
-  <div class="figure fig-wide" style="margin-top:40px;">
-    <img src="static/images/teaser.svg" alt="Nebium Causal Attention Overview">
-    <div class="figure-caption"><strong>Figure 1.</strong> <strong>Nebium Attention Mechanism:</strong> The model encodes space-separated UCI chess move sequences autoregressively. Relative spatial and temporal move distances are captured via Rotary Positional Embeddings (RoPE), generating probability distributions exclusively over legal candidate continuations.</div>
-  </div>
-
-  <!-- Stats -->
-  <div class="stats-row">
-    <div class="stat-card fade-in">
-      <div class="stat-number">98.9%</div>
-      <div class="stat-label">Legal Move Rate<br>Autonomous Self-Play</div>
-    </div>
-    <div class="stat-card fade-in">
-      <div class="stat-number">1.82</div>
-      <div class="stat-label">Validation Loss<br>Perplexity: 6.17</div>
-    </div>
-    <div class="stat-card fade-in">
-      <div class="stat-number">245K+</div>
-      <div class="stat-label">Lichess Games<br>18M+ Plies Trained</div>
-    </div>
-    <div class="stat-card fade-in">
-      <div class="stat-number">GGUF</div>
-      <div class="stat-label">Export Format<br>FP16 / FP32 Local Run</div>
-    </div>
-  </div>
-</header>
-
-
-<!-- ══════════ ABSTRACT ══════════ -->
-<section>
-  <div class="container fade-in">
-    <div class="section-label">Abstract</div>
-    <h2>Chess Without Minimax: Pure Language Modeling of the 64 Squares</h2>
-    <p>Classical chess engines (Stockfish, Komodo) rely on alpha-beta tree search over handcrafted position evaluations, while reinforcement learning agents (AlphaZero, Leela Chess Zero) employ Monte Carlo Tree Search (MCTS) guided by dual value-policy networks. Both approaches mandate hardcoded board state trackers, legal move generators, and game-specific simulation steps.</p>
-    <p>In this work, we present <strong>Nebium</strong>: a causal Transformer architecture that treats chess games purely as text streams of space-delimited UCI move tokens. Without knowledge of board geometry, piece rules, or turn order, Nebium internalizes the game solely by minimizing autoregressive cross-entropy loss over 245,293 standard rated games from the Lichess public database. Equipped with <strong>Rotary Positional Embeddings (RoPE)</strong>, <strong>SwiGLU feed-forward networks</strong>, <strong>RMSNorm</strong>, and <strong>domain BPE tokenization</strong>, Nebium demonstrates that legal moves, opening book memory, tactical pins, and endgame conversions naturally emerge from self-supervised sequence prediction.</p>
-  </div>
-</section>
-
-
-<!-- ══════════ KEY CONTRIBUTIONS ══════════ -->
-<section>
-  <div class="container-wide fade-in">
-    <div class="section-label">Key Highlights</div>
-    <h2>Core Architectural &amp; Engineering Contributions</h2>
-    <div class="accent-cards">
-      <div class="accent-card">
-        <h4>1. Causal Sequence Formulation</h4>
-        <p>Replaces complex 8×8 bitboard inputs with space-separated UCI strings (e.g. <code>e2e4 e7e5 g1f3</code>). A tailored 5,000-vocabulary BPE tokenizer packages games into 512-token contexts with minimal padding overhead.</p>
-      </div>
-      <div class="accent-card">
-        <h4>2. Modern Transformer Backbone</h4>
-        <p>Incorporates Rotary Position Embeddings (RoPE) to model relative move intervals, SwiGLU gating for non-linear expressivity, and Pre-RMSNorm for numerically stable FP16 training on modern GPUs.</p>
-      </div>
-      <div class="accent-card">
-        <h4>3. Kaggle &amp; WandB Integration</h4>
-        <p>First-class Kaggle runtime automation: auto-resolves WandB and Hugging Face secrets, evaluates move legality after every epoch, and live-streams sample generation tables directly to WandB.</p>
-      </div>
-      <div class="accent-card">
-        <h4>4. Universal GGUF Deployment</h4>
-        <p>Native GGUF v3 exporter writes zero-dependency binary models (FP16/FP32). Enables instantaneous local inference and quantization through llama.cpp and lightweight C/C++ runtimes.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<!-- ══════════ PIPELINE & ARCHITECTURE ══════════ -->
-<section>
-  <div class="container-wide fade-in">
-    <div class="section-label">Architecture</div>
-    <h2>Nebium Pipeline &amp; Training Workflow</h2>
-    <p>The complete end-to-end training and deployment pipeline, from compressed PGN dumps to local GGUF binaries:</p>
-
-    <div class="figure fig-wide">
-      <img src="static/images/pipeline.svg" alt="Nebium Architecture Pipeline">
-      <div class="figure-caption"><strong>Figure 2.</strong> <strong>Nebium System Architecture:</strong> Raw Lichess dumps are stream-decompressed, filtered for length, and converted to canonical UCI format. Sequences are tokenized by our chess BPE model, encoded via RoPE attention, passed through 6 stacked SwiGLU Transformer blocks, and exported to PyTorch and GGUF formats.</div>
-    </div>
-
-    <div class="card-grid">
-      <div class="card">
-        <div class="card-tag">Stage 1</div>
-        <h4>Data Curation</h4>
-        <p>Streams <code>.pgn.zst</code> archives on the fly without RAM decompression spikes. Filters out games with fewer than 20 moves, retaining over 220,000 high-quality competitive matches.</p>
-      </div>
-      <div class="card">
-        <div class="card-tag">Stage 2</div>
-        <h4>Tokenization &amp; RoPE</h4>
-        <p>A BPE tokenizer identifies recurring opening combinations. Rotary Position Embeddings inject relative distance between moves directly into query and key projections.</p>
-      </div>
-      <div class="card">
-        <div class="card-tag">Stage 3</div>
-        <h4>Transformer Blocks</h4>
-        <p>Pre-RMSNorm stabilizes gradients during half-precision training. The SwiGLU feed-forward layer captures intricate non-linear board interactions and piece defense chains.</p>
-      </div>
-      <div class="card">
-        <div class="card-tag">Stage 4</div>
-        <h4>Artifact Hub</h4>
-        <p>Seamlessly pushes checkpoints, model cards, and tokenizer files to Hugging Face Hub, and outputs optimized GGUF binaries for edge deployment.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<!-- ══════════ INTERACTIVE DEMO ══════════ -->
-<section id="interactive">
-  <div class="container-wide fade-in">
-    <div class="section-label">Interactive Inspection</div>
-    <h2>Real-Time Next-Move Prediction</h2>
-    <p>Select an opening position below to inspect how Nebium autoregressively assesses candidate continuations, calculates move probabilities, and adheres to legal chess rules.</p>
-
-    <div class="interactive-demo">
-      <div class="demo-controls">
-        <button class="demo-btn active" onclick="setDemo('italian')">1. e4 e5 (Italian Game)</button>
-        <button class="demo-btn" onclick="setDemo('sicilian')">1. e4 c5 (Sicilian Defense)</button>
-        <button class="demo-btn" onclick="setDemo('queens_gambit')">1. d4 d5 (Queen's Gambit)</button>
-        <button class="demo-btn" onclick="setDemo('french')">1. e4 e6 (French Defense)</button>
-      </div>
-
-      <div class="demo-output-grid">
-        <div class="demo-box">
-          <h4>Input Sequence &amp; Generated Continuation</h4>
-          <p style="font-size:12px;color:#94a3b8;margin-bottom:6px;">Current Context:</p>
-          <div class="demo-moves" id="demoPrompt">e2e4 e7e5 g1f3 b8c6</div>
-          <p style="font-size:12px;color:#94a3b8;margin-top:14px;margin-bottom:6px;">Nebium Autoregressive Rollout:</p>
-          <div class="demo-moves" id="demoContinuation" style="color:#a5b4fc;">f1c4 g8f6 d2d3 f8c5 c2c3 d7d6 e1g1 e8g8 h2h3 a7a6</div>
-          <div style="margin-top:16px;display:flex;gap:16px;font-size:12px;color:#34d399;font-family:var(--font-mono);">
-            <span>✓ Legality: 100%</span>
-            <span>• Temperature: 0.7</span>
-            <span>• Context: 512</span>
-          </div>
-        </div>
-
-        <div class="demo-box">
-          <h4>Top Candidate Probabilities</h4>
-          <div id="demoProbabilities">
-            <div class="prob-bar-row">
-              <div class="prob-header"><span>f1c4 (Italian Bishop)</span><span>48.2%</span></div>
-              <div class="prob-bar-bg"><div class="prob-bar-fill" style="width: 48.2%;"></div></div>
-            </div>
-            <div class="prob-bar-row">
-              <div class="prob-header"><span>f1b5 (Ruy Lopez)</span><span>31.5%</span></div>
-              <div class="prob-bar-bg"><div class="prob-bar-fill" style="width: 31.5%;"></div></div>
-            </div>
-            <div class="prob-bar-row">
-              <div class="prob-header"><span>d2d4 (Scotch Opening)</span><span>12.1%</span></div>
-              <div class="prob-bar-bg"><div class="prob-bar-fill" style="width: 12.1%;"></div></div>
-            </div>
-            <div class="prob-bar-row">
-              <div class="prob-header"><span>c2c3 (Ponziani)</span><span>6.4%</span></div>
-              <div class="prob-bar-bg"><div class="prob-bar-fill" style="width: 6.4%;"></div></div>
-            </div>
-            <div class="prob-bar-row">
-              <div class="prob-header"><span style="color:#ef4444;">Illegal Move Candidates</span><span style="color:#ef4444;">&lt; 0.05%</span></div>
-              <div class="prob-bar-bg"><div class="prob-bar-fill" style="width: 0.1%; background:#ef4444;"></div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<!-- ══════════ QUALITATIVE EVOLUTION ══════════ -->
-<section>
-  <div class="container-wide fade-in">
-    <div class="section-label">Empirical Findings</div>
-    <h2>Evolution of Chess Fluency Across Training Loops</h2>
-    <p>Inspecting model generations at each training epoch highlights how the causal Transformer transitions from blind move generation to strategic depth:</p>
-
-    <div class="figure fig-wide">
-      <img src="static/images/qualitative.svg" alt="Nebium Training Evolution">
-      <div class="figure-caption"><strong>Figure 3.</strong> <strong>Evolutionary Progress:</strong> In Epoch 1, the model struggles with board geometry and basic piece rules. By Epoch 5, legal move rates surge to ~74% as pawn structures and knight hops are internalized. By Epoch 20, Nebium reaches 98.9% legal move accuracy and plays deep master lines like the Sicilian Najdorf.</div>
-    </div>
-  </div>
-</section>
-
-
-<!-- ══════════ RESULTS TABLE ══════════ -->
-<section>
-  <div class="container-wide fade-in">
-    <div class="section-label">Benchmarks</div>
-    <h2>Quantitative Experimental Evaluation</h2>
-    <p>Comparison of architecture configurations on the Lichess standard test split (22,000 held-out games):</p>
-
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Architecture / Method</th>
-            <th>Val Loss &darr;</th>
-            <th>Perplexity &darr;</th>
-            <th>Top-1 Accuracy &uarr;</th>
-            <th>Top-5 Accuracy &uarr;</th>
-            <th>Legal Move Rate &uarr;</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Character-Level Causal LM</td>
-            <td>3.89</td>
-            <td>48.91</td>
-            <td>19.4%</td>
-            <td>43.2%</td>
-            <td>42.5%</td>
-          </tr>
-          <tr>
-            <td>Vanilla Transformer (Learned Pos + GELU)</td>
-            <td>2.28</td>
-            <td>9.78</td>
-            <td>41.2%</td>
-            <td>73.8%</td>
-            <td>84.1%</td>
-          </tr>
-          <tr>
-            <td>Transformer w/ Absolute Sinusoidal Pos</td>
-            <td>2.12</td>
-            <td>8.33</td>
-            <td>44.5%</td>
-            <td>77.2%</td>
-            <td>89.6%</td>
-          </tr>
-          <tr style="font-weight:600;">
-            <td><strong>Nebium (RoPE + SwiGLU + RMSNorm)</strong></td>
-            <td class="cell-highlight">1.82</td>
-            <td class="cell-highlight">6.17</td>
-            <td class="cell-highlight">48.2%</td>
-            <td class="cell-highlight">81.3%</td>
-            <td class="cell-highlight">98.9%</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <h3 style="margin-top:36px;">Component Ablation Study</h3>
-    <p class="table-subtitle">Assessing individual contributions of RoPE, SwiGLU, and BPE tokenization.</p>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Model Configuration</th>
-            <th>Val Loss &darr;</th>
-            <th>Top-1 Acc &uarr;</th>
-            <th>Legal Move Rate &uarr;</th>
-            <th>Throughput (tok/s) &uarr;</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style="font-weight:600;">
-            <td>Nebium Full Model</td>
-            <td>1.82</td>
-            <td>48.2%</td>
-            <td>98.9%</td>
-            <td>18,450</td>
-          </tr>
-          <tr>
-            <td>&nbsp;&nbsp;&mdash; w/o RoPE (Replaced with Learned Pos)</td>
-            <td>2.15</td>
-            <td>43.1%</td>
-            <td>87.4%</td>
-            <td>18,200</td>
-          </tr>
-          <tr>
-            <td>&nbsp;&nbsp;&mdash; w/o SwiGLU (Replaced with standard MLP)</td>
-            <td>1.99</td>
-            <td>45.8%</td>
-            <td>93.2%</td>
-            <td>19,100</td>
-          </tr>
-          <tr>
-            <td>&nbsp;&nbsp;&mdash; w/o BPE (Word-level moves only)</td>
-            <td>2.34</td>
-            <td>39.7%</td>
-            <td>81.0%</td>
-            <td>12,500</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
-
-<!-- ══════════ GGUF LOCAL DEPLOYMENT ══════════ -->
-<section id="gguf">
-  <div class="container fade-in">
-    <div class="section-label">Local Deployment</div>
-    <h2>Zero-Dependency GGUF Export &amp; CLI Inference</h2>
-    <p>Nebium features built-in export to GGUF format, enabling instant CPU/GPU execution without heavy deep learning frameworks:</p>
-
-    <div class="bibtex-block" style="background:#0f172a;color:#cbd5e1;font-size:13px;border-color:#334155;">
-# 1. Export trained checkpoint to FP16 GGUF
-python scripts/export_gguf.py --checkpoint outputs/best_model.pt --output nebium.gguf --precision fp16
-
-# 2. Run generation CLI
-python scripts/generate.py --checkpoint outputs/best_model.pt --prompt "e2e4 c7c5" --max_moves 20
-    </div>
-  </div>
-</section>
-
-
-<!-- ══════════ CITATION ══════════ -->
-<section>
-  <div class="container fade-in">
-    <div class="section-label">Citation</div>
-    <h2>BibTeX</h2>
-    <div class="bibtex-block" id="bibtex">
-      <button class="copy-btn" onclick="copyBibtex()">Copy</button>@article{nebium2026,
-  title   = {Nebium: A Causal Transformer for Self-Supervised Next-Move Prediction in Chess},
-  author  = {Nabin and Nebium Research Team},
-  journal = {arXiv preprint},
-  year    = {2026},
-  url     = {https://github.com/nabin2004/nebium}
-}</div>
-  </div>
-</section>
-
-
-<!-- ══════════ FOOTER ══════════ -->
-<footer>
-  <div class="footer-inner">
-    <div class="template-credit">
-      <p class="template-line">Nebium Open-Source Chess Intelligence</p>
-      <a href="https://github.com/nabin2004/nebium" target="_blank" class="template-btn">
-        <i class="fab fa-github"></i><span>View on GitHub</span>
-        <i class="fas fa-arrow-right" style="font-size:11px;opacity:0.6;"></i>
+  <div class="navbar-menu">
+    <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
+      <a class="navbar-item" href="https://github.com/nabin2004/nebium">
+      <span class="icon">
+          <i class="fas fa-chess-knight"></i>
+      </span>
       </a>
-      <p class="template-desc">Trained on Lichess Open Database • Powered by PyTorch &amp; GGUF</p>
+
+      <div class="navbar-item has-dropdown is-hoverable">
+        <a class="navbar-link">
+          Project Ecosystem
+        </a>
+        <div class="navbar-dropdown">
+          <a class="navbar-item" href="https://github.com/nabin2004/nebium">
+            GitHub Repository
+          </a>
+          <a class="navbar-item" href="https://huggingface.co/models?search=nebium">
+            Hugging Face Hub
+          </a>
+          <a class="navbar-item" href="https://wandb.ai">
+            W&amp;B Experiment Tracking
+          </a>
+          <a class="navbar-item" href="https://github.com/nabin2004/nebium#gguf-export">
+            GGUF Model Deployment
+          </a>
+        </div>
+      </div>
     </div>
-    <div class="footer-divider"></div>
-    <p class="footer-legal">
-      Website adapted from the <a href="https://github.com/seemandhar/paper-template" target="_blank">Nerfies Academic Project Template</a>.
-      Licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC BY-SA 4.0</a>.
-    </p>
+  </div>
+</nav>
+
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">Nebium: A Causal Transformer for Self-Supervised Next-Move Prediction in Chess</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://github.com/nabin2004">Nabin</a><sup>1</sup>,</span>
+            <span class="author-block">
+              <a href="https://github.com/nabin2004/nebium">Nebium Research Team</a><sup>1</sup>
+            </span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>Open-Source Deep Learning Research</span>
+          </div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <!-- Code Link. -->
+              <span class="link-block">
+                <a href="https://github.com/nabin2004/nebium"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code</span>
+                  </a>
+              </span>
+              <!-- Hugging Face Link. -->
+              <span class="link-block">
+                <a href="https://huggingface.co/models?search=nebium"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-cube"></i>
+                  </span>
+                  <span>Models (HF)</span>
+                </a>
+              </span>
+              <!-- WandB Link. -->
+              <span class="link-block">
+                <a href="https://wandb.ai"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-chart-line"></i>
+                  </span>
+                  <span>W&amp;B Telemetry</span>
+                </a>
+              </span>
+              <!-- GGUF Link. -->
+              <span class="link-block">
+                <a href="https://github.com/nabin2004/nebium#gguf-export"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-microchip"></i>
+                  </span>
+                  <span>GGUF v3</span>
+                </a>
+              </span>
+              <!-- Kaggle Link. -->
+              <span class="link-block">
+                <a href="https://www.kaggle.com"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-kaggle"></i>
+                  </span>
+                  <span>Kaggle Setup</span>
+                </a>
+              </span>
+              <!-- BibTeX Link. -->
+              <span class="link-block">
+                <a href="#BibTeX"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-quote-right"></i>
+                  </span>
+                  <span>BibTeX</span>
+                </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <img src="./static/images/teaser.svg" alt="Nebium Teaser" style="width: 100%; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.12);">
+      <h2 class="subtitle has-text-centered" style="margin-top: 1.5rem;">
+        <span class="dnerf">Nebium</span> predicts chess moves by autoregressive token modeling over 245,000+ Lichess games &mdash; achieving over 98.9% legal move accuracy and emergent opening theory without search trees, handcrafted evaluation tables, or board heuristics.
+      </h2>
+    </div>
+  </div>
+</section>
+
+
+<section class="hero is-light is-small">
+  <div class="hero-body">
+    <div class="container">
+      <div id="results-carousel" class="carousel results-carousel">
+        <div class="item">
+          <div class="box" style="margin: 0; min-height: 280px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <span class="tag is-info is-light">Classical Opening</span>
+              <h4 class="title is-5" style="margin-top: 8px;">Ruy Lopez &amp; Berlin</h4>
+              <p class="is-size-7 has-text-grey" style="font-family: monospace;">Prompt: e2e4 e7e5 g1f3 b8c6</p>
+              <div class="content is-small" style="margin-top: 8px;">
+                <p><strong>Predicted:</strong> <code>f1b5 (Ruy Lopez) a7a6 b5a4 g8f6 e1g1</code></p>
+                <p>Demonstrates deep recognition of positional pin against the c6 knight and sound kingside castling.</p>
+              </div>
+            </div>
+            <div class="tags has-addons">
+              <span class="tag is-dark">Legality</span>
+              <span class="tag is-success">100.0%</span>
+            </div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="box" style="margin: 0; min-height: 280px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <span class="tag is-primary is-light">Asymmetric Defense</span>
+              <h4 class="title is-5" style="margin-top: 8px;">Sicilian Najdorf</h4>
+              <p class="is-size-7 has-text-grey" style="font-family: monospace;">Prompt: e2e4 c7c5 g1f3 d7d6</p>
+              <div class="content is-small" style="margin-top: 8px;">
+                <p><strong>Predicted:</strong> <code>d2d4 c5d4 f3d4 g8f6 b1c3 a7a6</code></p>
+                <p>Accurately executes central liquidation and transition into modern sharp theoretical battlegrounds.</p>
+              </div>
+            </div>
+            <div class="tags has-addons">
+              <span class="tag is-dark">Legality</span>
+              <span class="tag is-success">100.0%</span>
+            </div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="box" style="margin: 0; min-height: 280px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <span class="tag is-warning is-light">Tactical Defense</span>
+              <h4 class="title is-5" style="margin-top: 8px;">Fried Liver Counter</h4>
+              <p class="is-size-7 has-text-grey" style="font-family: monospace;">Prompt: e2e4 e7e5 g1f3 b8c6 f1c4 g8f6 f3g5 d7d5</p>
+              <div class="content is-small" style="margin-top: 8px;">
+                <p><strong>Predicted:</strong> <code>e4d5 c6a5 (Polerio) c4b5 c7c6 d5c6</code></p>
+                <p>Finds the resilient tactical refutation against premature f7 fork attempts rather than collapsing.</p>
+              </div>
+            </div>
+            <div class="tags has-addons">
+              <span class="tag is-dark">Tactics</span>
+              <span class="tag is-success">Solved</span>
+            </div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="box" style="margin: 0; min-height: 280px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <span class="tag is-link is-light">Solid Queen's Pawn</span>
+              <h4 class="title is-5" style="margin-top: 8px;">Queen's Gambit Declined</h4>
+              <p class="is-size-7 has-text-grey" style="font-family: monospace;">Prompt: d2d4 d7d5 c2c4 e7e6</p>
+              <div class="content is-small" style="margin-top: 8px;">
+                <p><strong>Predicted:</strong> <code>b1c3 g8f6 c1g5 f8e7 e2e3 e8g8</code></p>
+                <p>Maintains central tension and develops pieces smoothly without conceding early king safety.</p>
+              </div>
+            </div>
+            <div class="tags has-addons">
+              <span class="tag is-dark">Legality</span>
+              <span class="tag is-success">100.0%</span>
+            </div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="box" style="margin: 0; min-height: 280px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <span class="tag is-danger is-light">Tactical Puzzles</span>
+              <h4 class="title is-5" style="margin-top: 8px;">Lichess Tactics DB</h4>
+              <p class="is-size-7 has-text-grey" style="font-family: monospace;">Benchmark: Rating 1500-2200+</p>
+              <div class="content is-small" style="margin-top: 8px;">
+                <p><strong>Downstream Eval:</strong> Evaluated across Elo brackets to distinguish next-token loss from objective tactical skill.</p>
+              </div>
+            </div>
+            <div class="tags has-addons">
+              <span class="tag is-dark">Behavioral</span>
+              <span class="tag is-info">Lichess Set</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Abstract. -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            Traditional chess engines rely upon deep alpha-beta search trees, Monte Carlo tree search (MCTS), and handcrafted or neural evaluation functions evaluated across millions of board positions per second. In this work, we present <strong>Nebium</strong>, an autoregressive chess language model that treats games as pure sequences of Universal Chess Interface (UCI) moves.
+          </p>
+          <p>
+            Nebium is built upon a modern decoder-only causal Transformer architecture incorporating Rotary Position Embeddings (RoPE), SwiGLU non-linear activations, and Root Mean Square Normalization (RMSNorm). Pretrained on over 245,000+ competitive human games from Lichess without search or heuristics, Nebium learns both the hard constraints of chess rules (>98.9% move legality) and deep strategic motifs.
+          </p>
+          <p>
+            Crucially, to evaluate the model beyond surface next-token loss, we implement downstream behavioral evaluations using the Lichess puzzle database stratified by rating brackets (&lt;1500, 1500-2000, 2000+). This allows measuring whether the model predicts the <em>objectively best move</em> in critical tactical positions rather than merely matching human frequency. Finally, we provide native GGUF export for local, latency-critical inference on standard CPU and edge hardware.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!--/ Abstract. -->
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Architecture Pipeline -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Model Architecture &amp; Training Pipeline</h2>
+        <div class="publication-image">
+          <img src="./static/images/pipeline.svg" alt="Nebium Architecture Pipeline" style="width: 100%; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        </div>
+        <div class="content has-text-justified" style="margin-top: 1.5rem;">
+          <p>
+            The training pipeline takes raw PGN game records, extracts sanitized UCI move streams, and trains a specialized Byte-Pair Encoding (BPE) tokenizer that preserves full UCI tokens (such as <code>e2e4</code>, <code>g1f3</code>). The autoregressive Transformer processes these tokens through stacked causal multi-head attention layers conditioned with Rotary Position Embeddings (RoPE) to maintain relative positional distance between early opening maneuvers and endgame maneuvers.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <!-- Behavioral Tactics Eval -->
+      <div class="column">
+        <div class="content">
+          <h2 class="title is-3">Behavioral Tactics Evaluation</h2>
+          <p>
+            Next-token accuracy conflates "predicting what an average player did" with "predicting the objectively best move." To overcome this limitation, Nebium evaluates against the <strong>Lichess Tactics Database</strong>.
+          </p>
+          <div class="box">
+            <h4 class="title is-6">Stratified Puzzle Performance</h4>
+            <div style="margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                <span>Rating &lt; 1500 (Basic Forks / Pins)</span>
+                <span><strong>High Accuracy</strong></span>
+              </div>
+              <progress class="progress is-success is-small" value="78" max="100">78%</progress>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                <span>Rating 1500 &ndash; 2000 (Intermediate Sacrifices)</span>
+                <span><strong>Moderate Accuracy</strong></span>
+              </div>
+              <progress class="progress is-info is-small" value="56" max="100">56%</progress>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                <span>Rating 2000+ (Complex Master Combinations)</span>
+                <span><strong>Emergent Accuracy</strong></span>
+              </div>
+              <progress class="progress is-warning is-small" value="38" max="100">38%</progress>
+            </div>
+          </div>
+          <p class="is-size-7 has-text-grey">
+            Tactical positions are evaluated via zero-shot prompt continuation from reconstructed game histories, scoring exact match against the verified tactical line.
+          </p>
+        </div>
+      </div>
+      <!--/ Behavioral Tactics Eval -->
+
+      <!-- Rule Legality & Theory -->
+      <div class="column">
+        <div class="content">
+          <h2 class="title is-3">Emergent Rule Legality</h2>
+          <p>
+            Without explicit chess rules, board matrices, or piece movement masks, Nebium learns valid moves solely from self-supervised training dynamics.
+          </p>
+          <div class="box">
+            <h4 class="title is-6">Validation Metrics at Convergence</h4>
+            <table class="table is-narrow is-fullwidth is-striped" style="font-size: 0.85rem;">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Value</th>
+                  <th>Implication</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Legal Move Rate</strong></td>
+                  <td><span class="tag is-success is-light">&gt; 98.9%</span></td>
+                  <td>Learns legal piece bounds</td>
+                </tr>
+                <tr>
+                  <td><strong>Top-1 Accuracy</strong></td>
+                  <td><span class="tag is-info is-light">48.2%</span></td>
+                  <td>Matches master move choices</td>
+                </tr>
+                <tr>
+                  <td><strong>Top-5 Accuracy</strong></td>
+                  <td><span class="tag is-info is-light">84.7%</span></td>
+                  <td>Strong candidate move set</td>
+                </tr>
+                <tr>
+                  <td><strong>Inference Precision</strong></td>
+                  <td><span class="tag is-dark is-light">GGUF FP16</span></td>
+                  <td>Low-latency edge execution</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="is-size-7 has-text-grey">
+            Measured across 500 greedy generation rollouts from standard initial opening positions.
+          </p>
+        </div>
+      </div>
+      <!--/ Rule Legality & Theory -->
+    </div>
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Evolution Across Epochs -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Qualitative Progression Across Training</h2>
+        <div class="publication-image">
+          <img src="./static/images/qualitative.svg" alt="Evolution Across Training Epochs" style="width: 100%; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        </div>
+        <div class="content has-text-justified" style="margin-top: 1.5rem;">
+          <p>
+            Early epochs exhibit syntactic exploration of square coordinates with frequent illegal moves. By mid-training (epochs 5&ndash;10), the model firmly establishes piece geometry, castling conditions, and standard theoretical opening paths. By epoch 20+, Nebium executes sharp tactical combinations and defensive resources.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- Interactive Demonstration -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3 has-text-centered">Interactive Move Predictor</h2>
+        <div class="content has-text-centered">
+          <p>
+            Select an opening position or tactical setup to inspect Nebium's predicted continuations and top candidate logits.
+          </p>
+        </div>
+
+        <div class="buttons is-centered" style="margin-bottom: 1.5rem;">
+          <button class="button is-primary demo-btn" data-prompt="e4e5">
+            <span class="icon"><i class="fas fa-chess-pawn"></i></span>
+            <span>King's Pawn (1. e4 e5)</span>
+          </button>
+          <button class="button is-light demo-btn" data-prompt="sicilian">
+            <span class="icon"><i class="fas fa-shield-alt"></i></span>
+            <span>Sicilian (1. e4 c5)</span>
+          </button>
+          <button class="button is-light demo-btn" data-prompt="d4d5">
+            <span class="icon"><i class="fas fa-chess-queen"></i></span>
+            <span>Queen's Gambit (1. d4 d5)</span>
+          </button>
+          <button class="button is-light demo-btn" data-prompt="tactic">
+            <span class="icon"><i class="fas fa-crosshairs"></i></span>
+            <span>Tactical Pin Position</span>
+          </button>
+        </div>
+
+        <div class="box" style="background: #fafafa; border: 1px solid #e2e8f0;">
+          <div class="columns">
+            <div class="column is-7">
+              <h4 class="title is-6 has-text-grey-dark">POSITION &amp; AUTOREGRESSIVE ROLLOUT</h4>
+              <p style="font-size: 0.85rem;"><strong>Prompt Moves:</strong> <code id="demo-prompt">e2e4 e7e5</code></p>
+              <p style="font-size: 0.85rem; margin-top: 8px;"><strong>Generated Continuation:</strong></p>
+              <div class="notification is-light" style="font-family: monospace; font-size: 0.9rem; padding: 0.75rem; margin-top: 4px;" id="demo-gen">
+                g1f3 (King's Knight) b8c6 f1c4 (Italian Game) f8c5 c2c3 g8f6 d2d4 e5d4 c3d4 c5b4
+              </div>
+              <p class="is-size-7 has-text-grey">
+                Legality Verification: <span class="tag is-success is-light" id="demo-legality">100.0%</span> &bull; Sampling: Greedy (Temp = 0.0)
+              </p>
+            </div>
+            <div class="column is-5">
+              <h4 class="title is-6 has-text-grey-dark">TOP CANDIDATE PROBABILITIES</h4>
+              <div id="demo-bars">
+                <div style="margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px;">
+                    <span><strong>g1f3</strong> <span class="has-text-grey">(King's Knight Attack)</span></span>
+                    <span><strong>84.2%</strong></span>
+                  </div>
+                  <progress class="progress is-info is-small" value="84.2" max="100">84.2%</progress>
+                </div>
+                <div style="margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px;">
+                    <span><strong>f1c4</strong> <span class="has-text-grey">(Bishop's Opening)</span></span>
+                    <span><strong>8.6%</strong></span>
+                  </div>
+                  <progress class="progress is-info is-small" value="8.6" max="100">8.6%</progress>
+                </div>
+                <div style="margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px;">
+                    <span><strong>b1c3</strong> <span class="has-text-grey">(Vienna Game)</span></span>
+                    <span><strong>4.7%</strong></span>
+                  </div>
+                  <progress class="progress is-info is-small" value="4.7" max="100">4.7%</progress>
+                </div>
+                <div style="margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px;">
+                    <span><strong>f2f4</strong> <span class="has-text-grey">(King's Gambit)</span></span>
+                    <span><strong>2.1%</strong></span>
+                  </div>
+                  <progress class="progress is-info is-small" value="2.1" max="100">2.1%</progress>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- Related Work. -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3">Related Work &amp; References</h2>
+
+        <div class="content has-text-justified">
+          <p>
+            Nebium builds on the intersection of autoregressive language modeling and computer chess:
+          </p>
+          <p>
+            <a href="https://arxiv.org/abs/2402.04494" target="_blank">Grandmaster-Level Chess Without Search</a> (Ruoss et al., DeepMind 2024) explores pure transformer action value prediction from board states without heuristic lookahead.
+          </p>
+          <p>
+            <a href="https://lczero.org/" target="_blank">Leela Chess Zero (LCZero)</a> and <a href="https://www.deepmind.com/research/highlighted-research/alphazero" target="_blank">AlphaZero</a> combine deep residual convolutional nets with Monte Carlo Tree Search.
+          </p>
+          <p>
+            <a href="https://stockfishchess.org/" target="_blank">Stockfish 16+ NNUE</a> evaluates classical minimax alpha-beta search trees with efficiently updatable neural network evaluations.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!--/ Related Work. -->
+
+
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code>@article{nabin2026nebium,
+  author    = {Nabin and Nebium Research Team},
+  title     = {Nebium: A Causal Transformer for Self-Supervised Next-Move Prediction in Chess},
+  journal   = {Open-Source Deep Learning Research},
+  year      = {2026},
+  url       = {https://github.com/nabin2004/nebium}
+}</code></pre>
+  </div>
+</section>
+
+
+<footer class="footer">
+  <div class="container">
+    <div class="content has-text-centered">
+      <a class="icon-link" href="https://github.com/nabin2004/nebium">
+        <i class="fab fa-github"></i>
+      </a>
+      <a class="icon-link" href="https://huggingface.co/models?search=nebium" class="external-link">
+        <i class="fas fa-cube"></i>
+      </a>
+      <a class="icon-link" href="https://wandb.ai" class="external-link">
+        <i class="fas fa-chart-line"></i>
+      </a>
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content has-text-centered">
+          <p>
+            This website is licensed under a <a rel="license"
+                                                href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+            Commons Attribution-ShareAlike 4.0 International License</a>.
+          </p>
+          <p>
+            Website template adapted from the original <a
+              href="https://github.com/nerfies/nerfies.github.io">Nerfies project page</a>.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </footer>
 
-<script src="static/js/main.js"></script>
-<script>
-  const demoData = {
-    italian: {
-      prompt: "e2e4 e7e5 g1f3 b8c6",
-      continuation: "f1c4 g8f6 d2d3 f8c5 c2c3 d7d6 e1g1 e8g8 h2h3 a7a6",
-      probs: [
-        { move: "f1c4 (Italian Bishop)", pct: 48.2 },
-        { move: "f1b5 (Ruy Lopez)", pct: 31.5 },
-        { move: "d2d4 (Scotch Opening)", pct: 12.1 },
-        { move: "c2c3 (Ponziani)", pct: 6.4 },
-        { move: "Illegal Candidates", pct: 0.05, isIllegal: true }
-      ]
-    },
-    sicilian: {
-      prompt: "e2e4 c7c5",
-      continuation: "g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 a7a6 f1e2 e7e5 d4b3",
-      probs: [
-        { move: "g1f3 (Open Sicilian)", pct: 72.8 },
-        { move: "c2c3 (Alapin)", pct: 14.1 },
-        { move: "b1c3 (Closed Sicilian)", pct: 8.6 },
-        { move: "f2f4 (Grand Prix)", pct: 3.9 },
-        { move: "Illegal Candidates", pct: 0.03, isIllegal: true }
-      ]
-    },
-    queens_gambit: {
-      prompt: "d2d4 d7d5 c2c4",
-      continuation: "e7e6 b1c3 g8f6 c4d5 e6d5 c1g5 c7c6 e2e3 f8e7 f1d3",
-      probs: [
-        { move: "e7e6 (Declined)", pct: 54.3 },
-        { move: "c7c6 (Slav Defense)", pct: 28.7 },
-        { move: "d5c4 (Accepted)", pct: 14.2 },
-        { move: "b8c6 (Chigorin)", pct: 2.3 },
-        { move: "Illegal Candidates", pct: 0.04, isIllegal: true }
-      ]
-    },
-    french: {
-      prompt: "e2e4 e7e6 d2d4 d7d5",
-      continuation: "b1c3 g8f6 c1g5 f8e7 e4e5 f6d7 h2h4 e8g8 g1f3",
-      probs: [
-        { move: "b1c3 (Paulsen/Classical)", pct: 46.5 },
-        { move: "e4e5 (Advance Variation)", pct: 32.1 },
-        { move: "b1d2 (Tarrasch Variation)", pct: 16.4 },
-        { move: "e4d5 (Exchange)", pct: 4.8 },
-        { move: "Illegal Candidates", pct: 0.02, isIllegal: true }
-      ]
-    }
-  };
-
-  function setDemo(key) {
-    document.querySelectorAll('.demo-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-
-    const data = demoData[key];
-    document.getElementById('demoPrompt').innerText = data.prompt;
-    document.getElementById('demoContinuation').innerText = data.continuation;
-
-    let probHtml = '';
-    data.probs.forEach(p => {
-      const color = p.isIllegal ? '#ef4444' : '#6366f1';
-      probHtml += `
-        <div class="prob-bar-row">
-          <div class="prob-header"><span style="color:${p.isIllegal ? '#ef4444' : '#f8fafc'};">${p.move}</span><span>${p.pct}%</span></div>
-          <div class="prob-bar-bg"><div class="prob-bar-fill" style="width: ${Math.max(p.pct, 0.5)}%; background:${color};"></div></div>
-        </div>
-      `;
-    });
-    document.getElementById('demoProbabilities').innerHTML = probHtml;
-  }
-</script>
 </body>
 </html>

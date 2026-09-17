@@ -159,3 +159,66 @@ def compute_legal_move_rate(
     total_legal = sum(s["legal_moves"] for s in samples)
     total_gen = sum(s["total_moves"] for s in samples)
     return (total_legal / total_gen) if total_gen > 0 else 0.0
+
+
+def evaluate_puzzles(
+    model: torch.nn.Module,
+    tokenizer,
+    device: torch.device,
+    puzzles: list[dict[str, Any]],
+) -> dict[str, float]:
+    """
+    Evaluates the model on a dataset of Lichess puzzles.
+    Returns overall accuracy and accuracy stratified by rating brackets.
+    """
+    if not puzzles:
+        return {}
+
+    prompts = [p["prompt"] for p in puzzles]
+    
+    # We only need 1 move to check accuracy. generate_sample_games returns a dict with "generated" string.
+    samples = generate_sample_games(
+        model=model,
+        tokenizer=tokenizer,
+        device=device,
+        prompts=prompts,
+        max_moves=1,
+        temperature=0.0,
+    )
+    
+    results = {"overall": {"correct": 0, "total": 0}}
+    
+    for puzzle, sample in zip(puzzles, samples):
+        rating = puzzle.get("rating", 1500)
+        if rating < 1500:
+            bracket = "<1500"
+        elif rating < 2000:
+            bracket = "1500-2000"
+        else:
+            bracket = "2000+"
+            
+        if bracket not in results:
+            results[bracket] = {"correct": 0, "total": 0}
+            
+        solution = puzzle["solution"].strip()
+        generated = sample["generated"].strip()
+        
+        gen_first_move = generated.split()[0] if generated else ""
+        is_correct = (gen_first_move == solution)
+        
+        results["overall"]["total"] += 1
+        results[bracket]["total"] += 1
+        if is_correct:
+            results["overall"]["correct"] += 1
+            results[bracket]["correct"] += 1
+            
+    metrics = {}
+    if results["overall"]["total"] > 0:
+        metrics["val/puzzle_accuracy"] = results["overall"]["correct"] / results["overall"]["total"]
+        
+    for bracket in ["<1500", "1500-2000", "2000+"]:
+        if bracket in results and results[bracket]["total"] > 0:
+            b_name = bracket.replace("<", "under_").replace("+", "_plus").replace("-", "_to_")
+            metrics[f"val/puzzle_acc_{b_name}"] = results[bracket]["correct"] / results[bracket]["total"]
+            
+    return metrics
