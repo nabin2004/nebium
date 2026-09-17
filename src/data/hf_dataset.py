@@ -50,28 +50,53 @@ def push_hf_dataset(
     n_sequences: int,
     private: bool = True,
 ) -> str:
-    staging = processed_dir / "_hf_upload"
-    if staging.exists():
-        shutil.rmtree(staging)
-    staging.mkdir(parents=True)
     for name in ("moves.txt", "manifest.json"):
         src = processed_dir / name
         if not src.exists():
             raise FileNotFoundError(f"Missing {src} for Hub dataset upload")
-        shutil.copy2(src, staging / name)
+    
     tokenizer = tokenizer_dir / "tokenizer.json"
     if not tokenizer.exists():
         raise FileNotFoundError(f"Missing {tokenizer} for Hub dataset upload")
-    shutil.copy2(tokenizer, staging / "tokenizer.json")
-    (staging / "README.md").write_text(_dataset_card(repo_id, n_sequences), encoding="utf-8")
 
     api = HfApi()
     api.create_repo(repo_id=repo_id, repo_type="dataset", private=private, exist_ok=True)
-    api.upload_folder(
-        folder_path=str(staging),
+    
+    # Upload files directly to avoid copying large moves.txt locally
+    api.upload_file(
+        path_or_fileobj=str(processed_dir / "moves.txt"),
+        path_in_repo="moves.txt",
         repo_id=repo_id,
         repo_type="dataset",
-        commit_message="Add processed Nebium UCI corpus",
+        commit_message="Add processed Nebium UCI corpus (moves.txt)",
     )
-    shutil.rmtree(staging, ignore_errors=True)
+    api.upload_file(
+        path_or_fileobj=str(processed_dir / "manifest.json"),
+        path_in_repo="manifest.json",
+        repo_id=repo_id,
+        repo_type="dataset",
+        commit_message="Add manifest.json",
+    )
+    api.upload_file(
+        path_or_fileobj=str(tokenizer),
+        path_in_repo="tokenizer.json",
+        repo_id=repo_id,
+        repo_type="dataset",
+        commit_message="Add tokenizer.json",
+    )
+    
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.md', encoding="utf-8") as tf:
+        tf.write(_dataset_card(repo_id, n_sequences))
+        tf_path = tf.name
+        
+    api.upload_file(
+        path_or_fileobj=tf_path,
+        path_in_repo="README.md",
+        repo_id=repo_id,
+        repo_type="dataset",
+        commit_message="Add README.md",
+    )
+    Path(tf_path).unlink(missing_ok=True)
+    
     return repo_id
