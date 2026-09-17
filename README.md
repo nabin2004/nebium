@@ -126,6 +126,19 @@ Each epoch, validation reports next-token metrics over labeled positions (`label
 | `val/perplexity` | `exp(mean CE)`; lower is more confident next-move prediction |
 | `val/loss` | Mean cross-entropy on those positions |
 
+### Scaling Laws
+
+To evaluate the Nebium family against theoretical Chinchilla power-law scaling predictions:
+
+```bash
+uv run python scripts/eval_scaling_laws.py \
+  --small checkpoint_small.pt \
+  --medium checkpoint_medium.pt \
+  --large checkpoint_large.pt \
+  --data-path data/fixtures/sample.pgn \
+  --report paper_assets/SCALING_LAWS.md
+```
+
 | Piece | Module |
 |---|---|
 | Token embedding | `src/models/transformer/embedding.py` |
@@ -138,8 +151,12 @@ Each epoch, validation reports next-token metrics over labeled positions (`label
 
 YAML knobs: `positional_encoding` (`rope` or `learned`), `activation` (`swiglu` or `gelu`), `norm` (`rmsnorm` or `layernorm`), `attention_type` (`standard`).
 
-- `configs/model/nebium_stub.yaml` — 64-d, 4 heads, 1 layer (default, fixture)
-- `configs/model/nebium_base.yaml` — 512-d, 8 heads, 6 layers
+- `configs/model/nebium_stub.yaml` — 64-d, 4 heads, 1 layer (default, fixture, ~8K params)
+- `configs/model/nebium_base.yaml` — 512-d, 8 heads, 6 layers (~6M params)
+- `configs/model/nebium_117m.yaml` — Nebium-Small (117M params, GPT-2 Small scale)
+- `configs/model/nebium_345m.yaml` — Nebium-Medium (345M params, GPT-2 Medium scale)
+- `configs/model/nebium_762m.yaml` — Nebium-Large (762M params, GPT-2 Large scale)
+- `configs/model/nebium_1_5b.yaml` — Nebium-XL (1.5B params)
 
 ## How to run
 
@@ -157,6 +174,11 @@ python scripts/train.py logging.mode=offline
 
 # Lichess 2013 corpus (use a larger model when you mean it)
 python scripts/train.py data=lichess model=nebium_base training=default logging=disabled
+
+# Train the Nebium scaling family on Kaggle
+python scripts/train.py --config-name kaggle_small
+python scripts/train.py --config-name kaggle_medium
+python scripts/train.py --config-name kaggle_large
 
 # Push the final checkpoint to Hugging Face (HF_TOKEN or huggingface-cli login)
 python scripts/train.py hub=huggingface hub.repo_id=USER/nebium

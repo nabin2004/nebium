@@ -1,0 +1,13 @@
+defaults:
+  - model: nebium_762m
+  - training: kaggle_762m
+  - data: kaggle
+  - logging: wandb
+  - hub: huggingface
+  - _self_
+
+smoke_test: false
+
+hydra:
+  run:
+    dir: /kaggle/working/outputs/nebium-large-${now:%Y-%m-%d_%H-%M-%S}

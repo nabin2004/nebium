@@ -1,0 +1,26 @@
+# Nebium-Large (762M) — GPT-2 Large / OPT-1.3B scale
+# Chinchilla-optimal: ~15.2B tokens for 762M params
+# LR further scaled; gradient accumulation compensates for smaller per-device batch
+optimizer: adamw
+learning_rate: 1.5e-4
+weight_decay: 0.1
+lr_scheduler: cosine
+warmup_steps: 3000
+batch_size: 8
+epochs: 20
+gradient_accumulation_steps: 16      # effective batch = 128 seqs
+mixed_precision: fp16
+gradient_clipping: 1.0
+early_stopping_patience: 5
+eval_samples: true
+eval_puzzles: true
+puzzle_path: "data/fixtures/puzzles.jsonl"
+sample_prompts:
+  - ""
+  - "e2e4"
+  - "d2d4"
+sample_max_moves: 20
+sample_temperature: 0.7
+export_gguf: true
+gguf_precision: fp16
+generate_report: false
