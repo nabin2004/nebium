@@ -1,6 +1,8 @@
 push: true
-repo_id: null
-private: true
-commit_message: Add Nebium checkpoint and GGUF model
+repo_id: null          # auto-resolves to {username}/nebium-{tier}
+gguf_repo_id: null     # auto-resolves to {username}/nebium-{tier}-gguf
+push_gguf_repo: true   # automatically send GGUF models to dedicated GGUF repo
+private: false
+commit_message: "Add Nebium checkpoint, GGUF binary, and evaluation metrics"
 export_gguf: true
 gguf_precision: fp16

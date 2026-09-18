@@ -2,6 +2,11 @@
     {
         "epoch": 1,
         "train_loss": 5.1051836013793945,
-        "val_loss": 4.954965674358865
+        "val_loss": 4.954965674358865,
+        "val_ppl": 141.87773624511442,
+        "val_accuracy": 0.0,
+        "val_top5_accuracy": 0.0,
+        "legal_move_rate": 0.0,
+        "puzzle_acc": 0.0
     }
 ]

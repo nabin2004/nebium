@@ -29,6 +29,24 @@ class NullLogger:
     def log_text(self, key: str, text: str, step: int | None = None) -> None:
         return None
 
+    def log_figure(self, key: str, figure: Any, step: int | None = None) -> None:
+        return None
+
+    def log_artifact(
+        self,
+        artifact_path: str | Any,
+        name: str,
+        type: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        return None
+
+    def log_summary(self, summary_metrics: dict[str, Any]) -> None:
+        return None
+
+    def define_metrics(self) -> None:
+        return None
+
     def watch_model(self, model: Any) -> None:
         return None
 

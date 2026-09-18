@@ -216,13 +216,15 @@ def evaluate_puzzles(
     tokenizer,
     device: torch.device,
     puzzles: list[dict[str, Any]],
-) -> dict[str, float]:
+    return_details: bool = False,
+) -> dict[str, float] | tuple[dict[str, float], list[dict[str, Any]]]:
     """
     Evaluates the model on a dataset of Lichess puzzles.
     Returns overall accuracy and accuracy stratified by rating brackets.
+    If return_details is True, also returns individual puzzle evaluation records.
     """
     if not puzzles:
-        return {}
+        return ({}, []) if return_details else {}
 
     prompts = [p["prompt"] for p in puzzles]
     
@@ -237,8 +239,9 @@ def evaluate_puzzles(
     )
     
     results = {"overall": {"correct": 0, "total": 0}}
+    detail_records: list[dict[str, Any]] = []
     
-    for puzzle, sample in zip(puzzles, samples):
+    for idx, (puzzle, sample) in enumerate(zip(puzzles, samples)):
         rating = puzzle.get("rating", 1500)
         if rating < 1500:
             bracket = "<1500"
@@ -261,6 +264,17 @@ def evaluate_puzzles(
         if is_correct:
             results["overall"]["correct"] += 1
             results[bracket]["correct"] += 1
+
+        if return_details:
+            detail_records.append({
+                "puzzle_id": puzzle.get("id", f"puz_{idx + 1}"),
+                "rating": rating,
+                "bracket": bracket,
+                "prompt": puzzle.get("prompt", ""),
+                "solution": solution,
+                "predicted": gen_first_move,
+                "is_correct": is_correct,
+            })
             
     metrics = {}
     if results["overall"]["total"] > 0:
@@ -271,4 +285,6 @@ def evaluate_puzzles(
             b_name = bracket.replace("<", "under_").replace("+", "_plus").replace("-", "_to_")
             metrics[f"val/puzzle_acc_{b_name}"] = results[bracket]["correct"] / results[bracket]["total"]
             
+    if return_details:
+        return metrics, detail_records
     return metrics

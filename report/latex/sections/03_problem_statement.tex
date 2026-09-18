@@ -3,6 +3,13 @@
 
 \subsection{Deep Learning Problem Formulation}
 \label{sec:dl_problem}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\linewidth]{figures/next_move_modelling.pdf}
+  \caption[Autoregressive Next-Move Modeling]{Autoregressive sequence modeling framework for next-move prediction.}
+  \label{fig:ml_problem}
+\end{figure}
+
 We formalize chess as an autoregressive sequence modeling task over a discrete move alphabet, departing from conventional evaluation-search engines (e.g., minimax $\alpha$-$\beta$ pruning or MCTS). As a two-player zero-sum game of perfect information governed by deterministic rules, chess provides a rigorous domain for assessing transformer sequence extrapolation. A match $G$ of length $T$ plies is expressed as an ordered token sequence:
 \begin{equation}
     \mathbf{x} = \left( x_1, x_2, \dots, x_T \right), \quad x_t \in \mathcal{V}
@@ -16,13 +23,6 @@ Parameters $\theta$ are optimized by minimizing expected cross-entropy loss over
     \mathcal{L}_{\text{CE}}(\theta) = - \mathbb{E}_{\mathbf{x} \sim \mathcal{D}} \left[ \frac{1}{T} \sum_{t=1}^T \log P_\theta(x_t \mid x_{<t}) \right]
 \end{equation}
 Figure~\ref{fig:ml_problem} illustrates this autoregressive framework, where the model attends strictly to historical move tokens ($x_{<t}$) to predict subsequent moves.
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.82\linewidth]{figures/next_move_modelling.pdf}
-  \caption[Autoregressive Next-Move Modeling]{Autoregressive sequence modeling framework for next-move prediction.}
-  \label{fig:ml_problem}
-\end{figure}
 
 This formulation introduces three core representation challenges:
 \begin{enumerate}

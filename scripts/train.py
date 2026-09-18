@@ -92,23 +92,36 @@ def main(cfg: DictConfig):
             # Check and report HF credentials if available
             token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
             repo_id = cfg.hub.get("repo_id")
-            if token:
-                try:
-                    from huggingface_hub import HfApi
-                    user_info = HfApi().whoami(token=token)
-                    user_name = user_info.get("name", "user")
-                    target_repo = repo_id if repo_id else f"{user_name}/nebium"
-                    hub_status = f"Auth valid (@{user_name}, target: {target_repo}). Push skipped during smoke test."
-                except Exception as exc:
-                    hub_status = f"HF_TOKEN detected, but auth check failed: {exc}"
-            elif repo_id:
-                hub_status = f"Target repo set ({repo_id}), but no HF_TOKEN found in environment."
-            else:
-                hub_status = "No HF_TOKEN configured. Set Kaggle secret 'HF_TOKEN' for production pushes."
+            gguf_repo_id = cfg.hub.get("gguf_repo_id")
+            from src.hub.push import _detect_family_key, _FAMILY
+            tier = _FAMILY.get(_detect_family_key(cfg), {}).get("tier", "small")
+            try:
+                from huggingface_hub import HfApi
+                user_info = HfApi(token=token).whoami()
+                user_name = user_info.get("name", "user")
+                target_repo = repo_id if repo_id else f"{user_name}/nebium-{tier}"
+                target_gguf = gguf_repo_id if gguf_repo_id else f"{user_name}/nebium-{tier}-gguf"
+                hub_status = f"Auth valid (@{user_name}, targets: {target_repo} & {target_gguf}). Push skipped during smoke test."
+            except Exception as exc:
+                if repo_id:
+                    hub_status = f"Target repos set ({repo_id}), auth note: {exc}"
+                else:
+                    hub_status = f"Target repos: nabin2004/nebium-{tier} & nebium-{tier}-gguf."
         else:
-            repo_id = push_to_hub(model, tokenizer, cfg, metrics)
-            if repo_id:
-                print(f"Pushed checkpoint to https://huggingface.co/{repo_id}")
+            push_res = push_to_hub(model, tokenizer, cfg, metrics)
+            if push_res:
+                if isinstance(push_res, dict):
+                    if "model" in push_res:
+                        print(f"Pushed base PyTorch model to https://huggingface.co/{push_res['model']}")
+                    if "gguf" in push_res:
+                        print(f"Pushed GGUF model to https://huggingface.co/{push_res['gguf']}")
+                    logger.log_summary({
+                        "hf_model_repo": push_res.get("model"),
+                        "hf_gguf_repo": push_res.get("gguf"),
+                    })
+                else:
+                    print(f"Pushed checkpoint to https://huggingface.co/{push_res}")
+                    logger.log_summary({"hf_model_repo": str(push_res)})
 
         if not smoke and bool(cfg.training.get("generate_report", True)):
             import subprocess

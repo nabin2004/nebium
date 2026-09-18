@@ -251,19 +251,82 @@ def run_training(
         # Evaluate puzzles if loaded
         puzzle_acc = 0.0
         if puzzles_dataset and tokenizer is not None:
-            puzzle_metrics = evaluate_puzzles(model, tokenizer, device, puzzles_dataset)
+            puzzle_metrics, puzzle_details = evaluate_puzzles(
+                model, tokenizer, device, puzzles_dataset, return_details=True
+            )
             last_metrics.update(puzzle_metrics)
             puzzle_acc = puzzle_metrics.get("val/puzzle_accuracy", 0.0)
+
+            if puzzle_details and hasattr(logger, "log_table"):
+                p_cols = ["epoch", "puzzle_id", "rating", "bracket", "prompt", "solution", "predicted", "status"]
+                p_rows = [
+                    [
+                        epoch + 1,
+                        p["puzzle_id"],
+                        p["rating"],
+                        p["bracket"],
+                        p["prompt"],
+                        p["solution"],
+                        p["predicted"],
+                        "✅ Correct" if p["is_correct"] else "❌ Failed",
+                    ]
+                    for p in puzzle_details
+                ]
+                logger.log_table("eval/puzzle_benchmarks", p_cols, p_rows, step=global_step)
 
         logger.log_metrics(last_metrics, step=global_step)
 
         # Log samples table to WandB if supported
         if samples and hasattr(logger, "log_table"):
-            table_cols = ["epoch", "prompt", "generated_moves", "legal_moves", "total_moves", "legal_rate"]
-            table_rows = [
-                [epoch + 1, s["prompt"], s["generated"], s["legal_moves"], s["total_moves"], s["legal_rate"]]
-                for s in samples
+            import chess
+            table_cols = [
+                "epoch",
+                "prompt",
+                "generated_moves",
+                "legality_status",
+                "legal_moves",
+                "total_moves",
+                "legal_rate_pct",
+                "stop_reason",
+                "final_fen",
             ]
+            table_rows = []
+            for s in samples:
+                tot = s["total_moves"]
+                leg = s["legal_moves"]
+                rate = s["legal_rate"]
+                if rate == 1.0 and tot > 0:
+                    status = "✅ 100% Legal"
+                elif rate >= 0.5:
+                    status = "⚠️ Partial Legality"
+                elif tot == 0:
+                    status = "ℹ️ No Moves"
+                else:
+                    status = "❌ Illegal / Diverged"
+
+                board = chess.Board()
+                full_moves = s.get("full_game", "").split()
+                for m_str in full_moves:
+                    try:
+                        mv = chess.Move.from_uci(m_str)
+                        if mv in board.legal_moves:
+                            board.push(mv)
+                        else:
+                            break
+                    except Exception:
+                        break
+
+                table_rows.append([
+                    epoch + 1,
+                    s["prompt"],
+                    s["generated"],
+                    status,
+                    leg,
+                    tot,
+                    round(rate * 100, 1),
+                    s.get("stop_reason", "unknown"),
+                    board.fen(),
+                ])
             logger.log_table("eval/sample_generations", table_cols, table_rows, step=global_step)
 
         # Terminal inspection block after each loop/epoch
@@ -278,7 +341,12 @@ def run_training(
         training_history_list.append({
             "epoch": epoch + 1,
             "train_loss": train_loss_epoch,
-            "val_loss": val_loss
+            "val_loss": val_loss,
+            "val_ppl": val_ppl,
+            "val_accuracy": val_acc,
+            "val_top5_accuracy": val_top5,
+            "legal_move_rate": overall_legal_rate,
+            "puzzle_acc": puzzle_acc,
         })
 
         print("\n" + "=" * 78)
@@ -321,5 +389,95 @@ def run_training(
 
     with open("training_history.json", "w") as f:
         json.dump(training_history_list, f, indent=4)
+
+    # -----------------------------------------------------------------------
+    # Publication-Grade Visualizations & WandB Artifact Logging
+    # -----------------------------------------------------------------------
+    try:
+        from src.logging.figures import (
+            plot_training_dynamics,
+            plot_accuracy_and_legality,
+            plot_scaling_law_alignment,
+            save_publication_figures,
+        )
+
+        n_params = sum(p.numel() for p in model.parameters())
+        tier_label = "Nebium"
+        tier_slug = "small"
+        if hasattr(cfg, "model") and hasattr(cfg.model, "d_model"):
+            d = int(cfg.model.d_model)
+            n = int(cfg.model.n_layers)
+            if d == 768 and n == 12:
+                tier_label = "Nebium-Small (117M)"
+                tier_slug = "small"
+            elif d == 1024 and n == 24:
+                tier_label = "Nebium-Medium (345M)"
+                tier_slug = "medium"
+            elif d == 1280 and n == 36:
+                tier_label = "Nebium-Large (762M)"
+                tier_slug = "large"
+
+        # 1. Log high-resolution publication figures to WandB
+        if training_history_list:
+            fig_dyn = plot_training_dynamics(training_history_list, tier_name=tier_label)
+            logger.log_figure("publication/training_dynamics", fig_dyn, step=global_step)
+
+            fig_acc = plot_accuracy_and_legality(training_history_list, tier_name=tier_label)
+            logger.log_figure("publication/accuracy_and_legality", fig_acc, step=global_step)
+
+        best_loss_val = best_val_loss if not math.isinf(best_val_loss) else last_metrics.get("val/loss", float("nan"))
+        fig_scale = plot_scaling_law_alignment(
+            empirical_params=n_params,
+            empirical_loss=best_loss_val,
+            current_tier=tier_label,
+        )
+        logger.log_figure("publication/scaling_laws", fig_scale, step=global_step)
+
+        # 2. Persist publication assets to disk
+        save_publication_figures(
+            history=training_history_list,
+            empirical_params=n_params,
+            empirical_loss=best_loss_val,
+            tier_name=tier_label,
+            output_dir="paper_assets",
+        )
+
+        # 3. Log versioned WandB artifacts
+        if os.path.exists("best_model.pt"):
+            logger.log_artifact(
+                "best_model.pt",
+                name=f"nebium-{tier_slug}-best-model",
+                type="model",
+                metadata=last_metrics,
+            )
+        if os.path.exists("nebium.gguf"):
+            logger.log_artifact(
+                "nebium.gguf",
+                name=f"nebium-{tier_slug}-gguf",
+                type="gguf",
+                metadata={"precision": str(cfg.training.get("gguf_precision", "fp16"))},
+            )
+        if os.path.exists("paper_assets"):
+            logger.log_artifact(
+                "paper_assets",
+                name=f"nebium-{tier_slug}-figures",
+                type="publication_figures",
+                metadata={"dpi": 300, "tier": tier_slug},
+            )
+
+        # 4. Record publication-grade summary metrics
+        logger.log_summary({
+            "best_val_loss": best_loss_val,
+            "final_val_loss": last_metrics.get("val/loss", float("nan")),
+            "final_val_perplexity": last_metrics.get("val/perplexity", float("nan")),
+            "final_top1_accuracy": last_metrics.get("val/accuracy", float("nan")),
+            "final_top5_accuracy": last_metrics.get("val/top5_accuracy", float("nan")),
+            "final_legal_move_rate": last_metrics.get("val/legal_move_rate", float("nan")),
+            "puzzle_accuracy": last_metrics.get("val/puzzle_accuracy", float("nan")),
+            "total_parameters": n_params,
+            "tier": tier_slug,
+        })
+    except Exception as exc:
+        print(f"[Publication Figures] Note: Figure logging caught: {exc}")
 
     return last_metrics

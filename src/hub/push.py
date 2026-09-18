@@ -1,7 +1,13 @@
-"""Hub push utilities: export checkpoints and generate rich per-model model cards."""
+"""
+Hub push utilities: export checkpoints and generate publication-standard model cards
+for both PyTorch weights and dedicated GGUF repositories across Nebium-Small,
+Nebium-Medium, and Nebium-Large.
+"""
 
 import json
 import math
+import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -27,9 +33,8 @@ _FAMILY = {
         "chinchilla_tokens_b": 2.3,
         "tier": "small",
         "description": (
-            "Nebium-Small is a 117-million-parameter causal Transformer for self-supervised "
-            "next-chess-move prediction, equivalent in scale to GPT-2 Small. "
-            "It is the most practical model for resource-constrained inference."
+            "Nebium-Small is a 117-million-parameter causal Transformer trained for autoregressive "
+            "next-chess-move prediction over Lichess UCI move sequences."
         ),
     },
     "nebium_345m": {
@@ -41,8 +46,8 @@ _FAMILY = {
         "chinchilla_tokens_b": 6.9,
         "tier": "medium",
         "description": (
-            "Nebium-Medium is a 345-million-parameter causal Transformer, equivalent in scale "
-            "to GPT-2 Medium. It balances quality and inference speed for production deployment."
+            "Nebium-Medium is a 345-million-parameter causal Transformer balancing sequence "
+            "quality and inference throughput for production evaluation."
         ),
     },
     "nebium_762m": {
@@ -55,8 +60,7 @@ _FAMILY = {
         "tier": "large",
         "description": (
             "Nebium-Large is a 762-million-parameter causal Transformer, the flagship model "
-            "in the Nebium family. It achieves the strongest tactical reasoning and legal-move "
-            "generation accuracy among the three tiers."
+            "in the Nebium family, optimized for move legality and tactical sequence reasoning."
         ),
     },
 }
@@ -74,14 +78,16 @@ def _count_params(model: torch.nn.Module) -> int:
     return sum(p.numel() for p in model.parameters())
 
 
-def _detect_family_key(cfg: DictConfig) -> str | None:
+def _detect_family_key(cfg: DictConfig) -> str:
     """Infer which family member this config corresponds to (by d_model / n_layers)."""
-    d = int(cfg.model.d_model)
-    n = int(cfg.model.n_layers)
+    if not hasattr(cfg, "model"):
+        return "nebium_117m"
+    d = int(cfg.model.get("d_model", 768))
+    n = int(cfg.model.get("n_layers", 12))
     for key, meta in _FAMILY.items():
         if meta["d_model"] == d and meta["n_layers"] == n:
             return key
-    return None
+    return "nebium_117m"
 
 
 def _chinchilla_loss_estimate(n_params: int, n_tokens: int) -> float:
@@ -89,7 +95,6 @@ def _chinchilla_loss_estimate(n_params: int, n_tokens: int) -> float:
     Hoffmann et al. (2022) Chinchilla power-law loss estimate:
         L(N, D) = E + A/N^alpha + B/D^beta
     where E=1.69, A=406.4, alpha=0.34, B=410.7, beta=0.28.
-    Returns estimated cross-entropy loss (nats).
     """
     E, A, alpha, B, beta = 1.69, 406.4, 0.34, 410.7, 0.28
     return E + A / (n_params ** alpha) + B / (n_tokens ** beta)
@@ -99,51 +104,64 @@ def _model_card(
     cfg: DictConfig,
     metrics: dict[str, float],
     model: torch.nn.Module | None = None,
-    has_gguf: bool = False,
+    repo_id: str | None = None,
+    gguf_repo_id: str | None = None,
 ) -> str:
     """Generate a rich, per-model Hugging Face model card with scaling law section."""
     family_key = _detect_family_key(cfg)
-    meta = _FAMILY.get(family_key or "", {})
-    model_name = meta.get("name", "Nebium")
-    params_label = meta.get("params_label", "")
-    tier = meta.get("tier", "")
-    description = meta.get("description", "Causal Transformer for next-move prediction on chess games.")
-    chinchilla_tokens_b = meta.get("chinchilla_tokens_b", None)
+    meta = _FAMILY.get(family_key, _FAMILY["nebium_117m"])
+    model_name = meta["name"]
+    params_label = meta["params_label"]
+    tier = meta["tier"]
+    description = meta["description"]
+    chinchilla_tokens_b = meta["chinchilla_tokens_b"]
 
     actual_params = _count_params(model) if model is not None else None
     actual_params_str = f"{actual_params / 1e6:.1f}M" if actual_params else params_label
 
     # --- YAML front-matter ---
-    family_tags = ["nebium-small"] if tier == "small" else (["nebium-medium"] if tier == "medium" else ["nebium-large"])
-    yaml_tags = ["chess", "causal-lm", "nebium", "transformer", "gguf"] + family_tags
+    family_tags = [f"nebium-{tier}"]
+    yaml_tags = ["chess", "causal-lm", "nebium", "transformer", "rope", "swiglu", "rmsnorm"] + family_tags
     tag_lines = "\n".join(f"- {t}" for t in yaml_tags)
 
     hf_metrics_yaml = ""
     for k, hf_k in [
         ("val/loss", "val_loss"),
-        ("val/accuracy", "val_accuracy"),
-        ("val/perplexity", "val_perplexity"),
+        ("val/accuracy", "accuracy"),
+        ("val/perplexity", "perplexity"),
         ("val/legal_move_rate", "legal_move_rate"),
+        ("val/puzzle_accuracy", "puzzle_accuracy"),
     ]:
         if k in metrics:
-            hf_metrics_yaml += f"  - type: {hf_k}\n    value: {metrics[k]:.6f}\n"
+            hf_metrics_yaml += f"      - type: {hf_k}\n        value: {float(metrics[k]):.6f}\n"
 
-    front_matter = f"""---
-library_name: pytorch
-language:
-- en
-tags:
-{tag_lines}
-model-index:
+    model_index_block = ""
+    if hf_metrics_yaml.strip():
+        model_index_block = f"""model-index:
 - name: {model_name}
   results:
   - task:
-      type: chess-next-move-prediction
+      type: text-generation
+      name: Chess Next Move Prediction
+    dataset:
+      name: Lichess UCI Move Sequences
+      type: nabin2004/nebium-lichess-uci
     metrics:
-{hf_metrics_yaml or '    []'}
+{hf_metrics_yaml.rstrip()}"""
+
+    front_matter = f"""---
+language:
+- en
+license: mit
+library_name: pytorch
+tags:
+{tag_lines}
+datasets:
+- nabin2004/nebium-lichess-uci
+pipeline_tag: text-generation
+{model_index_block}
 ---"""
 
-    # --- Body ---
     val_loss = metrics.get("val/loss", float("nan"))
     val_acc = metrics.get("val/accuracy", float("nan"))
     val_top5 = metrics.get("val/top5_accuracy", float("nan"))
@@ -151,138 +169,199 @@ model-index:
     legal_rate = metrics.get("val/legal_move_rate", float("nan"))
     puzzle_acc = metrics.get("val/puzzle_accuracy", float("nan"))
 
-    # Scaling law section
     scaling_section = ""
     if chinchilla_tokens_b is not None:
-        n_params_est = actual_params if actual_params else int(meta.get("d_model", 512) ** 2 * meta.get("n_layers", 6) * 12)
+        n_params_est = actual_params if actual_params else int(meta["d_model"] ** 2 * meta["n_layers"] * 12)
         d_optimal = int(chinchilla_tokens_b * 1e9)
-        d_trained = int(cfg.data.get("max_games", 245293)) * 50  # rough tokens estimate (avg 50 moves/game * avg tokens)
+        d_trained = int(cfg.data.get("max_games", 245293)) * 50
         L_optimal = _chinchilla_loss_estimate(n_params_est, d_optimal)
         L_trained = _chinchilla_loss_estimate(n_params_est, max(d_trained, 1_000_000))
         scaling_section = f"""
-## Scaling Law Analysis (Chinchilla, Hoffmann et al. 2022)
+## Scaling Law Analysis (Hoffmann et al. 2022)
 
-The Chinchilla power-law loss estimate for this model:
+Chinchilla power-law formulation:
 
-```
-L(N, D) = E + A/N^alpha + B/D^beta
-where E=1.69, A=406.4, alpha=0.34, B=410.7, beta=0.28
-```
+$$L(N, D) = 1.69 + \\frac{{406.4}}{{N^{{0.34}}}} + \\frac{{410.7}}{{D^{{0.28}}}}$$
 
-| Quantity | Value |
+| Parameter / Metric | Value |
 |---|---|
-| Model parameters (N) | {actual_params_str} |
-| Chinchilla-optimal token budget | ~{chinchilla_tokens_b}B tokens |
-| Estimated optimal loss at {chinchilla_tokens_b}B tokens | {L_optimal:.4f} nats |
-| Approximate tokens trained | ~{d_trained / 1e6:.1f}M tokens |
-| Estimated loss at training tokens | {L_trained:.4f} nats |
-| Observed validation loss | {val_loss:.4f} nats |
-
-> **Note**: Chinchilla estimates assume a generic autoregressive LM on web text. Chess UCI token
-> distributions are more structured, so actual loss may differ. The table is provided for
-> **comparative scaling-law analysis** across the three Nebium tiers.
+| Model Parameters ($N$) | {actual_params_str} |
+| Chinchilla-Optimal Token Budget ($D^*$) | ~{chinchilla_tokens_b}B tokens |
+| Compute-Optimal Expected Loss ($L_{{optimal}}$) | {L_optimal:.4f} nats |
+| Approximate Trained Tokens ($D$) | ~{d_trained / 1e6:.1f}M tokens |
+| Theoretical Loss at Current Tokens | {L_trained:.4f} nats |
+| Empirical Validation Loss | {val_loss:.4f} nats |
 """
+
+    gguf_link = f"- **GGUF Repository**: [{gguf_repo_id}](https://huggingface.co/{gguf_repo_id})" if gguf_repo_id else ""
+    pytorch_link = f"- **PyTorch Repository**: [{repo_id}](https://huggingface.co/{repo_id})" if repo_id else ""
 
     body = f"""
 # {model_name} ({actual_params_str})
 
 {description}
 
-This model is part of the **Nebium family** — a trio of causal Transformers trained on
-self-supervised next-move prediction over Lichess UCI game sequences.
+{pytorch_link}
+{gguf_link}
+- **Source Repository**: [github.com/nabin2004/nebium](https://github.com/nabin2004/nebium)
 
-## Nebium Model Family
+## Nebium Model Family Architecture Overview
 
 {_FAMILY_TABLE}
 
-All three models share the same architecture primitives:
-- **RoPE** (Rotary Position Embeddings) on Q/K in every attention head
-- **SwiGLU** feed-forward network
+Architectural Primitives:
+- **Rotary Position Embeddings (RoPE)** on attention query and key projections ($\\theta = 10000$)
+- **SwiGLU** feed-forward transformation
 - **RMSNorm** pre-normalization
-- **Causal + padding mask** for variable-length game sequences
-- **BPE chess tokenizer** trained on UCI move sequences
+- **Causal mask** with padding token masking
+- **Byte-Pair Encoding (BPE)** tokenizer trained on UCI move plies
 
-## Architecture — {model_name}
+## Architectural Specifications
 
 | Hyperparameter | Value |
 |---|---|
-| Parameters | {actual_params_str} |
-| d_model | {cfg.model.d_model} |
-| n_heads | {cfg.model.n_heads} |
-| n_layers | {cfg.model.n_layers} |
-| max_seq_len | {cfg.model.max_seq_len} |
-| vocab_size | {cfg.model.vocab_size} |
-| positional_encoding | {cfg.model.get('positional_encoding', 'rope')} |
-| activation | {cfg.model.get('activation', 'swiglu')} |
-| norm | {cfg.model.get('norm', 'rmsnorm')} |
+| Model Tier | **{model_name}** |
+| Parameter Count | **{actual_params_str}** |
+| Hidden Dimension ($d_{{model}}$) | {cfg.model.d_model} |
+| Attention Heads ($n_{{heads}}$) | {cfg.model.n_heads} |
+| Transformer Layers ($n_{{layers}}$) | {cfg.model.n_layers} |
+| Max Context Length ($L_{{max}}$) | {cfg.model.max_seq_len} |
+| Vocabulary Size ($V$) | {cfg.model.vocab_size} |
+| Positional Embedding | {cfg.model.get('positional_encoding', 'rope')} |
+| Activation Function | {cfg.model.get('activation', 'swiglu')} |
+| Layer Normalization | {cfg.model.get('norm', 'rmsnorm')} |
 
-## Validation Metrics
+## Validation & Benchmark Results
 
-| Metric | Value |
+| Metric | Measured Value |
 |---|---|
 | Validation Loss | {val_loss:.6f} |
 | Validation Perplexity | {val_ppl:.4f} |
-| Top-1 Accuracy | {val_acc * 100:.2f}% |
-| Top-5 Accuracy | {val_top5 * 100:.2f}% |
-| Legal Move Rate | {legal_rate * 100:.2f}% |
-| Puzzle Accuracy | {puzzle_acc * 100:.2f}% |
+| Next-Token Top-1 Accuracy | {val_acc * 100:.2f}% |
+| Next-Token Top-5 Accuracy | {val_top5 * 100:.2f}% |
+| Empirical Move Legality Rate | {legal_rate * 100:.2f}% |
+| Tactical Puzzle Accuracy | {puzzle_acc * 100:.2f}% |
 {scaling_section}
 
-## Artifacts
-
-| File | Description |
-|---|---|
-| `model.pt` | PyTorch state dict (raw weights) |
-| `model_config.json` | Architecture configuration JSON |
-| `tokenizer.json` | BPE chess tokenizer |
-{("| `nebium.gguf` | GGUF format for local inference via llama.cpp / Ollama |" if has_gguf else "")}
-
-## Usage
+## Python Usage Example
 
 ```python
+import json
 import torch
-from omegaconf import OmegaConf
 from src.models.transformer.nebium import Nebium
 from src.data.tokenizer import ChessTokenizer
 
-# Load tokenizer
 tokenizer = ChessTokenizer()
 tokenizer.load("tokenizer.json")
 
-# Load model
-config = OmegaConf.load("model_config.json")
+with open("model_config.json", "r", encoding="utf-8") as f:
+    config = json.load(f)
+
 model = Nebium(**config)
-state_dict = torch.load("model.pt", map_location="cpu")
+state_dict = torch.load("model.pt", map_location="cpu", weights_only=True)
 model.load_state_dict(state_dict)
 model.eval()
 
-# Generate moves from a starting position
-prompt = "e2e4 e7e5"
-input_ids = torch.tensor([[tokenizer.bos_id] + tokenizer.encode(prompt)])
-mask = torch.ones_like(input_ids)
+prompt = "e2e4 e7e5 g1f3"
+input_ids = torch.tensor([[tokenizer.bos_id] + tokenizer.encode(prompt)], dtype=torch.long)
+attention_mask = torch.ones_like(input_ids)
 
 with torch.no_grad():
-    output = model.generate(input_ids, mask, max_new_tokens=10, temperature=0.7)
-moves = tokenizer.decode(output[0].tolist())
-print("Generated game:", moves)
-```
+    output = model.generate(input_ids, attention_mask, max_new_tokens=10, temperature=0.7)
 
-## Training
-
-Trained with the [Nebium](https://github.com/nabin2004/nebium) framework using:
-
-```bash
-python scripts/train.py --config-name kaggle_{tier} \\
-  data.hf_dataset.repo_id=USER/nebium-lichess-uci \\
-  hub.repo_id=USER/nebium-{tier}
+print("Continuation:", tokenizer.decode(output[0].tolist()))
 ```
 
 ## License
 
-MIT
+MIT License.
 """
+    return front_matter + "\n" + body
 
-    return front_matter + body
+
+def _gguf_model_card(
+    cfg: DictConfig,
+    metrics: dict[str, float],
+    repo_id: str | None = None,
+    gguf_repo_id: str | None = None,
+) -> str:
+    """Generate a dedicated Hugging Face model card for the GGUF repository."""
+    family_key = _detect_family_key(cfg)
+    meta = _FAMILY.get(family_key, _FAMILY["nebium_117m"])
+    model_name = meta["name"]
+    tier = meta["tier"]
+    params_label = meta["params_label"]
+
+    return f"""---
+language:
+- en
+license: mit
+tags:
+- chess
+- causal-lm
+- gguf
+- llama.cpp
+- ollama
+- nebium
+- nebium-{tier}
+pipeline_tag: text-generation
+---
+
+# {model_name}-GGUF
+
+Quantized and FP16 GGUF format binaries for **{model_name}** ({params_label} parameters).
+
+Designed for low-latency CPU and GPU execution with [llama.cpp](https://github.com/ggerganov/llama.cpp) and [Ollama](https://ollama.ai).
+
+- **PyTorch Base Model**: [{repo_id}](https://huggingface.co/{repo_id})
+- **GGUF Repository**: [{gguf_repo_id}](https://huggingface.co/{gguf_repo_id})
+- **Source Repository**: [github.com/nabin2004/nebium](https://github.com/nabin2004/nebium)
+
+---
+
+## Artifacts
+
+| Filename | Precision | Description |
+|---|---|---|
+| `nebium-{tier}.gguf` | FP16 | Full-precision baseline export |
+| `tokenizer.json` | Tokenizer | BPE vocabulary and merge definitions |
+
+---
+
+## Inference with llama.cpp
+
+```bash
+# Clone and compile llama.cpp
+git clone https://github.com/ggerganov/llama.cpp && cd llama.cpp && make
+
+# Download GGUF binary
+huggingface-cli download {gguf_repo_id} nebium-{tier}.gguf --local-dir .
+
+# Run prompt continuation
+./llama-cli -m nebium-{tier}.gguf -p "e2e4 e7e5 g1f3" -n 25 --temp 0.7
+```
+
+---
+
+## Inference with Ollama
+
+```dockerfile
+# Modelfile
+FROM ./nebium-{tier}.gguf
+PARAMETER temperature 0.7
+PARAMETER stop "<|eos|>"
+SYSTEM You are an autoregressive chess next-move prediction model using UCI move notation.
+```
+
+```bash
+ollama create nebium-{tier} -f Modelfile
+ollama run nebium-{tier} "e2e4 e7e5"
+```
+
+## License
+
+MIT License.
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -295,42 +374,62 @@ def export_checkpoint(
     cfg: DictConfig,
     metrics: dict[str, float],
     export_dir: Path,
-) -> Path:
+    repo_id: str | None = None,
+    gguf_repo_id: str | None = None,
+) -> dict[str, Path]:
     """
-    Exports PyTorch model weights, JSON configuration, tokenizer, GGUF binary,
-    and a generated Markdown model card to an export directory.
-
-    Args:
-        model: Trained PyTorch model.
-        tokenizer: Initialized ChessTokenizer.
-        cfg: Hydra configuration dictionary.
-        metrics: Dictionary of evaluation metrics.
-        export_dir: Output directory path.
-
-    Returns:
-        Path to the populated export directory.
+    Exports model weights, configurations, tokenizer, and GGUF binary to staging directories.
+    Produces both base PyTorch directory and dedicated GGUF directory.
     """
     export_dir.mkdir(parents=True, exist_ok=True)
+    pytorch_dir = export_dir / "pytorch"
+    gguf_dir = export_dir / "gguf"
+    pytorch_dir.mkdir(parents=True, exist_ok=True)
+    gguf_dir.mkdir(parents=True, exist_ok=True)
+
     state_dict = model.module.state_dict() if hasattr(model, "module") else model.state_dict()
-    torch.save(state_dict, export_dir / "model.pt")
+
+    # 1. PyTorch directory
+    torch.save(state_dict, pytorch_dir / "model.pt")
     config = OmegaConf.to_container(cfg.model, resolve=True)
+    (pytorch_dir / "model_config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+    tokenizer.save(str(pytorch_dir / "tokenizer.json"))
+    (pytorch_dir / "README.md").write_text(
+        _model_card(cfg, metrics, model=model, repo_id=repo_id, gguf_repo_id=gguf_repo_id),
+        encoding="utf-8",
+    )
+
+    # Backwards compatibility flat files in export_dir root
+    torch.save(state_dict, export_dir / "model.pt")
     (export_dir / "model_config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     tokenizer.save(str(export_dir / "tokenizer.json"))
+    (export_dir / "README.md").write_text(
+        _model_card(cfg, metrics, model=model, repo_id=repo_id, gguf_repo_id=gguf_repo_id),
+        encoding="utf-8",
+    )
+
+    # 2. GGUF directory
+    family_key = _detect_family_key(cfg)
+    tier = _FAMILY.get(family_key, {}).get("tier", "small")
+    gguf_filename = f"nebium-{tier}.gguf"
 
     has_gguf = False
     if bool(cfg.hub.get("export_gguf", True)):
         try:
-            gguf_path = export_dir / "nebium.gguf"
+            gguf_path = gguf_dir / gguf_filename
             export_to_gguf(model, tokenizer, gguf_path, precision=str(cfg.hub.get("gguf_precision", "fp16")))
+            tokenizer.save(str(gguf_dir / "tokenizer.json"))
+            (gguf_dir / "README.md").write_text(
+                _gguf_model_card(cfg, metrics, repo_id=repo_id, gguf_repo_id=gguf_repo_id),
+                encoding="utf-8",
+            )
+            # Also keep a copy at export_dir / "nebium.gguf"
+            shutil.copy2(gguf_path, export_dir / "nebium.gguf")
             has_gguf = True
         except Exception as exc:
             print(f"[Hub Export] Warning: Failed to export GGUF: {exc}")
 
-    (export_dir / "README.md").write_text(
-        _model_card(cfg, metrics, model=model, has_gguf=has_gguf),
-        encoding="utf-8",
-    )
-    return export_dir
+    return {"pytorch": pytorch_dir, "gguf": gguf_dir}
 
 
 def push_to_hub(
@@ -339,36 +438,69 @@ def push_to_hub(
     cfg: DictConfig,
     metrics: dict[str, float],
     export_dir: Path | None = None,
-) -> str | None:
+) -> dict[str, str] | None:
     """
-    Exports model artifacts and uploads the directory to the Hugging Face Hub.
-
-    Args:
-        model: Trained PyTorch model.
-        tokenizer: Initialized ChessTokenizer.
-        cfg: Hydra configuration dictionary.
-        metrics: Evaluation metrics dictionary.
-        export_dir: Optional staging directory (default: 'export').
-
-    Returns:
-        Hugging Face repository ID string if pushed, or None if push disabled.
-
-    Raises:
-        ValueError: If `hub.repo_id` is not configured when push is enabled.
+    Exports model artifacts and uploads to both the base PyTorch model repo
+    and the dedicated companion GGUF repo on the Hugging Face Hub.
     """
     if not bool(cfg.hub.get("push", False)):
         return None
-    repo_id = cfg.hub.repo_id
-    if not repo_id:
-        raise ValueError("hub.repo_id is required when hub.push=true (e.g. USER/nebium-small).")
-    dest = Path(export_dir) if export_dir is not None else Path("export")
-    export_checkpoint(model, tokenizer, cfg, metrics, dest)
-    api = HfApi()
-    api.create_repo(repo_id=repo_id, private=bool(cfg.hub.get("private", True)), exist_ok=True)
-    api.upload_folder(
-        folder_path=str(dest),
-        repo_id=repo_id,
-        commit_message=str(cfg.hub.get("commit_message", "Add Nebium checkpoint and GGUF model")),
-    )
-    return repo_id
 
+    api = HfApi()
+    try:
+        user_info = api.whoami()
+        username = user_info.get("name", "nabin2004")
+    except Exception:
+        username = "nabin2004"
+
+    family_key = _detect_family_key(cfg)
+    tier = _FAMILY.get(family_key, {}).get("tier", "small")
+
+    # Resolve target repository IDs
+    base_repo_id = cfg.hub.get("repo_id") or f"{username}/nebium-{tier}"
+    gguf_repo_id = cfg.hub.get("gguf_repo_id") or f"{username}/nebium-{tier}-gguf"
+    is_private = bool(cfg.hub.get("private", False))
+
+    dest = Path(export_dir) if export_dir is not None else Path("export")
+    exported_dirs = export_checkpoint(
+        model,
+        tokenizer,
+        cfg,
+        metrics,
+        dest,
+        repo_id=base_repo_id,
+        gguf_repo_id=gguf_repo_id,
+    )
+
+    pushed = {}
+
+    # 1. Push PyTorch Base Model Repository
+    print(f"[Hub Push] Uploading PyTorch checkpoint to https://huggingface.co/{base_repo_id}...")
+    try:
+        api.create_repo(repo_id=base_repo_id, private=is_private, exist_ok=True)
+        api.upload_folder(
+            folder_path=str(exported_dirs["pytorch"]),
+            repo_id=base_repo_id,
+            commit_message=str(cfg.hub.get("commit_message", f"Update {tier} weights and metrics")),
+        )
+        pushed["model"] = base_repo_id
+        print(f"[Hub Push] Successfully pushed base model: https://huggingface.co/{base_repo_id}")
+    except Exception as exc:
+        print(f"[Hub Push] Error uploading base model to {base_repo_id}: {exc}")
+
+    # 2. Push Dedicated GGUF Repository
+    if bool(cfg.hub.get("push_gguf_repo", True)) and (exported_dirs["gguf"] / f"nebium-{tier}.gguf").exists():
+        print(f"[Hub Push] Uploading GGUF binary to https://huggingface.co/{gguf_repo_id}...")
+        try:
+            api.create_repo(repo_id=gguf_repo_id, private=is_private, exist_ok=True)
+            api.upload_folder(
+                folder_path=str(exported_dirs["gguf"]),
+                repo_id=gguf_repo_id,
+                commit_message=str(cfg.hub.get("commit_message", f"Update {tier} GGUF binaries")),
+            )
+            pushed["gguf"] = gguf_repo_id
+            print(f"[Hub Push] Successfully pushed GGUF model: https://huggingface.co/{gguf_repo_id}")
+        except Exception as exc:
+            print(f"[Hub Push] Error uploading GGUF model to {gguf_repo_id}: {exc}")
+
+    return pushed if pushed else None
