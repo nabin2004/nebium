@@ -7,6 +7,8 @@ In contrast, advances in causal transformers \parencite{vaswani2017attention,tou
 
 Sequence-based game models \parencite{Toshniwal2021ChessAA,li2023emergent,ruoss2024amortized} demonstrate that autoregressive architectures can implicitly track state variables across time steps. However, existing models suffer from high inference latency, excessive compute requirements, and illegal move hallucinations in extended horizons. Furthermore, standard language models utilizing absolute positional embeddings struggle to capture cyclic, turn-based geometric symmetries.
 
+From a software deployment perspective, conventional machine learning workflows historically relied on static graph runtimes such as TensorFlow or ONNX Runtime \parencite{bai2019onnx}. However, modern generative modeling has converged onto PyTorch~2.3 \parencite{paszke2019pytorch} for development and GGUF binary quantization \parencite{gerganov2023llamacpp} for deployment. This modern pipeline eliminates the debugging opacity of static graphs and the multi-file dependency overhead of ONNX, providing a unified, memory-mapped runtime optimized for real-time interaction.
+
 \subsection{Aims and Objectives}
 \label{sec:intro_aims}
 This research designs, implements, empirically validates, and critically appraises \textbf{Nebium}, a lightweight causal transformer for self-supervised next-move prediction in chess. This study addresses five core objectives:

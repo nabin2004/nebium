@@ -135,3 +135,5 @@ where $\tau > 0$ represents sampling temperature. The final probability distribu
     P(x_t = i \mid \mathbf{x}_{<t}) = \frac{\exp(\tilde{z}_{t, i})}{\sum_{j \in \mathcal{I}_{\text{legal}}} \exp(\tilde{z}_{t, j})}
 \end{equation}
 This hybrid architecture combines the strategic intuition and fast pattern recognition of deep transformers with the absolute correctness of rule verification.
+
+To transition from training to low-latency edge serving, Nebium adopts a PyTorch-to-GGUF serialization pipeline rather than legacy ONNX Runtime or TensorFlow Serving frameworks. Whereas traditional ONNX exports decouple computation graphs from tokenizer vocabularies and suffer from Python interpreter bottlenecks during sequential decoding, GGUF encapsulates model weights, block-wise quantization scales (\texttt{Q4\_K\_M}), and BPE metadata into a unified binary, enabling zero-copy memory-mapped inference on commodity CPUs (detailed in Section~\ref{sec:tools_deployment}).
