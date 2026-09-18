@@ -62,9 +62,7 @@ Standard Algebraic Notation (SAN)---such as \texttt{Nxf7+}---is human-readable b
 For example, moving a pawn from e2 to e4 is uniquely encoded as \texttt{e2e4}, kingside castling as \texttt{e1g1}, and queen promotion as \texttt{e7e8q}.
 
 \subsubsection{Byte-Pair Encoding (BPE) Tokenization}
-Tokenization critically governs transformer efficiency. Character-level tokenization expands sequence lengths by $4\times$, diluting attention across plies \parencite{stockl-2021-watching}. Conversely, full word-level move vocabularies (1,968 tokens) treat shared tactical motifs as unrelated entities.
-
-We implemented a custom BPE tokenizer via HuggingFace \texttt{tokenizers} (\texttt{ChessTokenizerHF}, Figure~\ref{fig:tokenizer}). Starting from ASCII characters, BPE iteratively merges co-occurring pairs up to $V = 5,000$ tokens, reserving control tokens:
+Tokenization critically governs transformer efficiency. Character-level tokenization expands sequence lengths by $4\times$, diluting attention across plies \parencite{stockl-2021-watching}. Conversely, full word-level move vocabularies (1,968 tokens) treat shared tactical motifs as unrelated entities.This project implements a custom BPE tokenizer via HuggingFace \texttt{tokenizers} (\texttt{ChessTokenizerHF}, Figure~\ref{fig:tokenizer}). Starting from ASCII characters, BPE iteratively merges co-occurring pairs up to $V = 5,000$ tokens, reserving control tokens:
 \begin{equation}
     \mathcal{V}_{\text{special}} = \left\{ [\texttt{PAD}], [\texttt{UNK}], [\texttt{BOS}], [\texttt{EOS}], [\texttt{SEP}] \right\}
 \end{equation}
