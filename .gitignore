@@ -25,3 +25,6 @@ data/tokenizer/
 *.pt
 *.pth
 *.gguf
+
+# Separate proposal repository
+report/proposal/

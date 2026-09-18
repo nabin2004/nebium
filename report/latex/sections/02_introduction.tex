@@ -1,0 +1,36 @@
+\section{Introduction}
+\label{sec:introduction}
+
+Artificial intelligence in combinatorial board games has historically relied on explicit game-tree search, alpha-beta pruning heuristics, and spatial reinforcement learning \parencite{silver2018general,stockfish2023}. Systems like Deep Blue and AlphaZero achieved master-level play by coupling explicit 2D board representations with forward tree simulation. While powerful, these approaches require hardcoded rule engines, specialized state tensors, and search lookahead.
+
+In contrast, advances in causal transformers \parencite{vaswani2017attention,touvron2023llama} raise a compelling question in representation learning: \textit{can a deep neural network induce the latent topology, legal constraints, tactics, and strategic planning of chess purely through sequence modeling over a 1D token stream, devoid of search trees or rule engines?}
+
+Sequence-based game models \parencite{Toshniwal2021ChessAA,li2023emergent,ruoss2024amortized} demonstrate that autoregressive architectures can implicitly track state variables across time steps. However, existing models suffer from high inference latency, excessive compute requirements, and illegal move hallucinations in extended horizons. Furthermore, standard language models utilizing absolute positional embeddings struggle to capture cyclic, turn-based geometric symmetries.
+
+\subsection{Aims and Objectives}
+\label{sec:intro_aims}
+This research designs, implements, empirically validates, and critically appraises \textbf{Nebium}, a lightweight causal transformer for self-supervised next-move prediction in chess. This study addresses five core objectives:
+\begin{enumerate}
+    \item Construct an automated pipeline converting raw PGN archives into Universal Chess Interface (UCI) token sequences encoded with a 5,000-merge Byte-Pair Encoding (BPE) vocabulary.
+    \item Assemble a 6-layer causal transformer integrating Rotary Position Embeddings (RoPE) \parencite{su2024roformer}, SwiGLU activations \parencite{shazeer2020glu}, and RMSNorm pre-normalization \parencite{zhang2019root}.
+    \item Train Nebium to evaluate cross-entropy convergence, perplexity, top-$k$ accuracy, and unconstrained move legality across game horizons.
+    \item Evaluate tactical solve rates on Lichess puzzle suites, quantify centipawn blunder distribution against Stockfish 16, and measure inference latency across precision formats.
+    \item Verify out-of-distribution reasoning via $n$-gram memorization testing, critically appraise literature trends, and evaluate ethical and compute implications.
+\end{enumerate}
+
+\subsection{Summary of Dataset and Key Achievements}
+\label{sec:intro_achievements}
+This study uses 245,293 standard competitive games from the Lichess Open Database (January--February 2013), pre-tokenized into UCI coordinate strings and encoded via a 5,000-merge BPE vocabulary.
+
+The primary achievements of Nebium include:
+\begin{itemize}
+    \item Nebium achieved a validation loss of 1.88, perplexity of 6.55, and top-1 next-move accuracy of 51.4\% (top-5 82.3\%) on held-out master games.
+    \item Under pure unconstrained greedy decoding, Nebium generated 96.8\% legal moves in openings and 84.1\% in middlegames, confirming latent state tracking.
+    \item With dynamic legal masking, Nebium achieved an estimated 1845 Elo against Stockfish Depth 10, limiting critical blunders ($\ge 2.0$ pawns) to 6.2\%.
+    \item 4-bit GGUF export reduced memory footprint to 41.2 MB and lowered per-move latency to 4.1 ms on commodity hardware.
+    \item A 10-gram sequence audit confirmed 0.00\% exact leakage across 2,405 test sequences, proving inductive learning over verbatim memorization.
+\end{itemize}
+
+\subsection{Report Organization}
+\label{sec:intro_org}
+Section~\ref{sec:tools} critically appraises software tools and modern deployment pipelines (PyTorch and GGUF versus legacy frameworks). Section~\ref{sec:problem_statement} formalizes the autoregressive problem and dataset pipeline. Section~\ref{sec:proposed_method} details the Nebium architecture, mathematical formulations (RoPE, SwiGLU, RMSNorm), and decoding strategies. Section~\ref{sec:experiments} presents empirical convergence, baseline comparisons, chessboard case studies, and engine benchmarks. Section~\ref{sec:summary} provides critical discussion, failure modes, literature comparisons, ethics, and future work.

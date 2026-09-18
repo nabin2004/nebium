@@ -1,0 +1,205 @@
+\section{Appendix: Core Implementation Code}
+\label{sec:code_appendix}
+
+In compliance with the coursework specification, this appendix provides the concise, commented Python source code implementing the core architectural components, rotary positional encodings, subword tokenization, and dynamic legal move evaluation loop from the Nebium framework.
+
+\subsection{Nebium Model Architecture and Causal Forward Pass}
+\label{sec:code_nebium}
+The following listing illustrates the \texttt{Nebium} class, orchestrating token embeddings, stacked pre-normalized transformer blocks, and the linear projection head.
+
+\begin{lstlisting}[language=Python, caption={Core Nebium architecture implemented in src/models/transformer/nebium.py.}]
+import torch
+from torch import nn
+from src.models.transformer.block import TransformerBlock
+from src.models.transformer.embedding import TokenEmbedding
+from src.models.transformer.norm import build_norm
+
+class Nebium(nn.Module):
+    """
+    Causal decoder-only Transformer for autoregressive chess sequence modeling.
+    Integrates Rotary Position Embeddings (RoPE), SwiGLU, and RMSNorm.
+    """
+    def __init__(
+        self,
+        vocab_size: int = 5000,
+        d_model: int = 512,
+        n_heads: int = 8,
+        n_layers: int = 6,
+        dropout: float = 0.10,
+        max_seq_len: int = 512,
+        positional_encoding: str = "rope",
+        activation: str = "swiglu",
+        norm: str = "rmsnorm",
+    ) -> None:
+        super().__init__()
+        self.max_seq_len = max_seq_len
+        # Token embedding projection
+        self.token_embed = TokenEmbedding(vocab_size, d_model)
+        self.embed_dropout = nn.Dropout(dropout)
+        
+        # Stacked Causal Transformer blocks
+        self.blocks = nn.ModuleList([
+            TransformerBlock(
+                d_model=d_model,
+                n_heads=n_heads,
+                dropout=dropout,
+                max_seq_len=max_seq_len,
+                use_rope=(positional_encoding == "rope"),
+                activation=activation,
+                norm=norm,
+            ) for _ in range(n_layers)
+        ])
+        
+        # Final pre-projection RMSNorm and untied language model head
+        self.final_norm = build_norm(norm, d_model)
+        self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module: nn.Module) -> None:
+        """Gaussian initialization with standard deviation scaled to 0.02."""
+        if isinstance(module, (nn.Linear, nn.Embedding)):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if hasattr(module, "bias") and module.bias is not None:
+                nn.init.zeros_(module.bias)
+
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        """Forward pass through token embedding, blocks, and language model head."""
+        hidden = self.embed_dropout(self.token_embed(input_ids))
+        for block in self.blocks:
+            hidden = block(hidden, attention_mask)
+        # Project normalized hidden states to vocabulary logits
+        return self.lm_head(self.final_norm(hidden))
+\end{lstlisting}
+
+\subsection{Rotary Position Embedding (RoPE)}
+\label{sec:code_rope}
+Listing~\ref{lst:code_rope} presents the Rotary Position Embedding layer, computing continuous complex sinusoidal rotations across attention head dimensions.
+
+\begin{lstlisting}[language=Python, label={lst:code_rope}, caption={Rotary Position Embedding implementation in src/models/transformer/rope.py.}]
+import torch
+from torch import nn
+
+class RotaryEmbedding(nn.Module):
+    """
+    Computes frequency bands and sinusoidal rotary embeddings for relative move encoding.
+    """
+    def __init__(self, dim: int, max_seq_len: int = 512, base: float = 10000.0) -> None:
+        super().__init__()
+        # Compute inverse frequency bands along half the head dimension
+        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
+        t = torch.arange(max_seq_len, dtype=torch.float32)
+        freqs = torch.outer(t, self.inv_freq)
+        # Cache cos and sin embedding tensors
+        self.register_buffer("cos_cached", freqs.cos(), persistent=False)
+        self.register_buffer("sin_cached", freqs.sin(), persistent=False)
+
+    def forward(self, seq_len: int):
+        """Returns cached cosine and sine tables truncated to current sequence length."""
+        return self.cos_cached[:seq_len], self.sin_cached[:seq_len]
+
+def apply_rotary_pos_emb(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
+    """Rotates query and key tensors in 2D orthogonal subspaces."""
+    cos = cos.unsqueeze(0).unsqueeze(1)  # Broadcast to [1, 1, seq_len, dim/2]
+    sin = sin.unsqueeze(0).unsqueeze(1)
+    # Interleave half dimensions: [-x2, x1]
+    x1, x2 = x[..., 0::2], x[..., 1::2]
+    rotated = torch.cat((-x2, x1), dim=-1)
+    cos_full = torch.cat((cos, cos), dim=-1)
+    sin_full = torch.cat((sin, sin), dim=-1)
+    return (x * cos_full) + (rotated * sin_full)
+\end{lstlisting}
+
+\subsection{SwiGLU Feed-Forward Activation}
+\label{sec:code_swiglu}
+Listing~\ref{lst:code_swiglu} displays the bilinear SwiGLU gating layer with dimension scaling.
+
+\begin{lstlisting}[language=Python, label={lst:code_swiglu}, caption={SwiGLU module implemented in src/models/transformer/ffn.py.}]
+import torch
+import torch.nn.functional as F
+from torch import nn
+
+class SwiGLU(nn.Module):
+    """
+    Swish-Gated Linear Unit feed-forward layer with bilinear gating.
+    """
+    def __init__(self, d_model: int, d_ff: int, dropout: float = 0.1, bias: bool = False) -> None:
+        super().__init__()
+        self.w_gate = nn.Linear(d_model, d_ff, bias=bias)
+        self.w_up = nn.Linear(d_model, d_ff, bias=bias)
+        self.w_down = nn.Linear(d_ff, d_model, bias=bias)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Applies Swish(W_gate * x) * (W_up * x) followed by linear down-projection."""
+        gated = F.silu(self.w_gate(x)) * self.w_up(x)
+        return self.dropout(self.w_down(gated))
+\end{lstlisting}
+
+\subsection{Dynamic Legal Move Masking Inference Loop}
+\label{sec:code_masking}
+Listing~\ref{lst:code_masking} details the inference loop that synchronizes candidate tokens with \texttt{python-chess} board legal moves, clamping illegal logits to $-\infty$.
+
+\begin{lstlisting}[language=Python, label={lst:code_masking}, caption={Dynamic legal move logit masking in src/evaluation/chess\_metrics.py.}]
+import chess
+import torch
+
+def generate_sample_games(
+    model: torch.nn.Module,
+    tokenizer,
+    device: torch.device,
+    prompts: list[str] = ["", "e2e4", "d2d4"],
+    max_moves: int = 20,
+    temperature: float = 0.7,
+) -> list[dict]:
+    """
+    Generates move continuations with dynamic legal move validation.
+    Clamps logits of illegal moves to -inf before sampling.
+    """
+    model.eval()
+    results = []
+    with torch.no_grad():
+        for prompt in prompts:
+            board = chess.Board()
+            # Initialize board state from prefix moves
+            if prompt.strip():
+                for mv in prompt.strip().split():
+                    board.push(chess.Move.from_uci(mv))
+                input_ids = [tokenizer.bos_id] + tokenizer.encode(prompt.strip())
+            else:
+                input_ids = [tokenizer.bos_id]
+
+            curr_tokens = list(input_ids)
+            for _ in range(max_moves):
+                if board.is_game_over():
+                    break
+                # Prepare model input window
+                x = torch.tensor([curr_tokens[-512:]], dtype=torch.long, device=device)
+                logits = model(x, torch.ones_like(x))
+                next_logits = logits[0, -1, :].clone()
+
+                # Determine currently legal move tokens
+                legal_uci = {m.uci() for m in board.legal_moves}
+                legal_indices = []
+                for move_str in legal_uci:
+                    tokens = tokenizer.encode(move_str)
+                    if len(tokens) == 1:
+                        legal_indices.append(tokens[0])
+
+                # Clamp non-legal token logits to negative infinity
+                mask_legal = torch.zeros_like(next_logits, dtype=torch.bool)
+                mask_legal[legal_indices] = True
+                next_logits[~mask_legal] = -float("Inf")
+
+                # Sample next legal move token
+                probs = torch.softmax(next_logits / temperature, dim=-1)
+                pred_token = torch.multinomial(probs, num_samples=1).item()
+                pred_uci = tokenizer.decode([pred_token]).strip()
+
+                # Update board and token history
+                board.push(chess.Move.from_uci(pred_uci))
+                curr_tokens.append(pred_token)
+
+            results.append({"prompt": prompt, "game": " ".join([m.uci() for m in board.move_stack])})
+    return results
+\end{lstlisting}

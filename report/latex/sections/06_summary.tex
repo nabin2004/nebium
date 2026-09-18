@@ -1,0 +1,43 @@
+\section{Summary and Critical Discussion}
+\label{sec:summary}
+
+\subsection{Discussion of Main Findings}
+\label{sec:summary_findings}
+This research demonstrates that a compact, 28.4M parameter causal transformer---devoid of explicit board matrices, forward search trees, or handcrafted heuristics---can learn the mechanics, positional strategy, and tactical dynamics of chess purely through self-supervised autoregressive sequence modeling. The empirical findings establish four key insights:
+\begin{enumerate}
+    \item \textbf{Modern Architectural Priors}: Replacing absolute position embeddings and Post-LN with Rotary Position Embeddings (RoPE), SwiGLU, and RMSNorm reduced validation perplexity from 8.50 to 6.55, increasing top-1 accuracy to 51.4\%. RoPE's rotational invariance mirrors turn-taking tempos and relative move latencies.
+    \item \textbf{Emergent Latent Representation}: Unconstrained move legality of 96.8\% in openings and 84.1\% in middlegames confirms that causal attention heads synthesize an implicit semantic board geometry. Mechanistic attention probing (Figure~\ref{fig:attention_map}) revealed heads specialized in tracking pawn shields and king safety.
+    \item \textbf{Probabilistic-Symbolic Symbiosis}: Dynamic legal move logit masking guarantees 100\% legality during deployment without distorting strategic probability rank-orders, yielding an estimated playing strength of 1845 Elo against Stockfish Depth 10.
+    \item \textbf{Verifiable Generalization}: A 10-gram sequence audit proved 0.00\% exact leakage across 2,405 test sequences, refuting claims that autoregressive game agents merely replicate memorized training games.
+\end{enumerate}
+
+\subsection{Critical Appraisal of Literature and Industry Trends}
+\label{sec:summary_trends}
+The development of Nebium intersects with two contemporary research frontiers:
+
+\subsubsection{Amortized Planning vs. Explicit Search}
+Recent work by Google DeepMind on \textit{Amortized Planning} \parencite{ruoss2024amortized} demonstrated that large transformers can approximate Alpha-Beta search within forward passes. Nebium confirms this on an accessible scale: strategic opening plans and tactical motifs execute in $\approx 4$--$10$ ms of constant-time forward inference. However, in deep tactical branches (e.g., multi-ply sacrifices), accuracy falls to 28.6\% (Table~\ref{tab:puzzle_results}), proving that feed-forward sequence prediction cannot fully replace iterative tree search when tactical branching explodes.
+
+\subsubsection{Language-Augmented Models and Geometric Encodings}
+\textcite{NEURIPS2023_16b14e3f} introduced \textit{ChessGPT}, combining language commentary with policy tokens; however, dual-objective training degrades pure tactical precision. Conversely, \textcite{monroe2026chessformer} proposed Geometric Attention Bias (GAB) in \textit{Chessformer} to inject 2D coordinates, but GAB requires external board re-synthesis at every ply. Nebium demonstrates that general-purpose RoPE achieves comparable spatial cohesion while remaining natively compatible with standard transformer acceleration frameworks and GGUF quantization.
+
+\subsection{Failure Modes and Technical Limitations}
+\label{sec:summary_limitations}
+Despite competitive play, Nebium exhibits three primary limitations:
+\begin{itemize}
+    \item \textbf{Endgame Coordinate Drift}: In piece-sparse endgames ($>60$ plies), unconstrained legality degrades to 63.5\% due to fewer landmark pieces, occasionally causing repetitive king shuffle loops.
+    \item \textbf{Tactical Horizon Limits}: The network occasionally selects locally active moves that succumb to forced checkmates 4 plies later, confirming that autoregression prioritizes local likelihood over global minimax value.
+    \item \textbf{Context Truncation}: While $T_{\text{max}} = 512$ covers 98.4\% of games, matches exceeding 256 full moves require sliding-window truncation, discarding early opening moves.
+\end{itemize}
+
+\subsection{Ethical and Societal Implications}
+\label{sec:summary_ethics}
+The deployment of sequence-based game intelligence raises two ethical considerations:
+\begin{itemize}
+    \item \textbf{Environmental Sustainability}: Nebium completed its 20-epoch training in 4.2 GPU hours on a single consumer GPU ($\approx 1.8\text{ kWh} \approx 0.75\text{ kg CO}_2\text{e}$), while 4-bit GGUF quantization (41.2 MB) democratizes local research on standard hardware without cloud dependency.
+    \item \textbf{Fair Play and Game Integrity}: Ultra-compact, human-like chess transformers operating on edge devices present risks for undetected online cheating, bypassing traditional Stockfish-depth detection algorithms. Mitigating this risk requires cryptographic watermarking and behavioral entropy auditing on digital gaming platforms.
+\end{itemize}
+
+\subsection{Conclusions and Future Trajectories}
+\label{sec:summary_conclusion}
+Nebium validates that modern causal transformers can discover and encode complex formal game rules, strategic plans, and spatial representations without explicit rule engineering. Future work will investigate hybrid neuro-symbolic integrations: combining Nebium's policy prior with lightweight Monte Carlo Tree Search (MCTS), integrating an auxiliary scalar value head for position evaluation, and exploring linear attention architectures (State-Space Models or Mamba) to extend context lengths without quadratic attention overhead.

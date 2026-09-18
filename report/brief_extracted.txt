@@ -1,0 +1,862 @@
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+Coursework Assignment Brief
+Assessment - Undergraduate
+
+Academic Year 2025-26
+Module Title: Deep Neural Networks
+Module Code: CMP6228
+Assessment Type
+Coursework
+
+Level
+6
+
+Weighting
+
+80%
+
+Submission Date
+15th May 2026
+
+Submission Time
+03:00 PM
+
+Module Leader
+Dr. Khalid Ismail
+
+Word Count/Workload
+Report: 3000 words
+excluding figures and
+references.
+
+Assessment Information
+Assessment Summary
+
+Assessment Title
+
+In this assessment, students will build, implement, and
+evaluate a deep learning model to solve the challenging
+problem defined in Assessment 1. The task involves
+developing a complete workflow, from model design and
+experimentation to evaluation and reporting of findings using
+modern deep learning tools.
+Assessment 2 – Final Report (weighting 80%)
+
+Completion of this assessment will address the following learning outcomes:
+1
+2
+3
+4
+
+Evaluate different deep learning techniques for suitability to a given knowledge
+discovery problem.
+Validate deep learning methods using modern deep leaning tools.
+Professionally report deep learning results providing clear solutions to the
+identified knowledge discovery problems.
+Critically appraise recent trends in deep learning literature and industry relevant to
+your work.
+
+1
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+Submission Information
+Present any written aspects of the assessment using font size 11 and using 1.5 spacing to allow
+for comments and annotations to be added by the markers.
+Complete the appropriate cover sheet for this assessment and append your work.
+This assessment will be marked anonymously and should show your student number only.
+Submit this coursework assessment task via Moodle.
+Late Submission
+Assessments must be submitted in the format specified in the assessment task, by the deadline
+and to the submission point published on Moodle. Failure to submit by the published deadline will
+result in penalties which are set out in Section 6 of the Academic Regulations, available at:
+https://icity.bcu.ac.uk/Quality-Enhancement-and-Inclusion/Quality-Assurance-andEnhancement/Academic-Regulations
+Word Count
+The maximum word count for this module assessment is shown on Page 1. A +10% margin of
+tolerance is applied, beyond which nothing further will be marked. Marks cannot be awarded for
+any learning outcomes addressed outside the word count.
+The word count refers to everything in the main body of the text (including headings, tables,
+citations, quotes, lists etc.). Everything before (i.e. abstract, acknowledgements, contents,
+executive summaries etc.) and after (i.e. references, bibliographies, appendices etc) is not
+included in the word count limit.
+Referencing Style
+•
+
+BCU Harvard
+
+More information on referencing is available here: https://www.bcu.ac.uk/library/services-andsupport/referencing
+Use of Artificial Intelligence
+Whilst AI tools can be helpful in assisting learning, when it comes to assessment, the Academic
+Misconduct Procedure is clear that this should be a student’s own original work and not the work of
+other people or AI tools.
+The Use of AI Tools – Student Guidelines document follows the same guidelines your lecturers
+use. If you are unsure of whether AI is appropriate within your work, please read the guidelines or
+ask your lecturer. For advice and guidance around academic writing, please visit the Centre for
+Academic Success.
+
+2
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+Academic Integrity Guidance
+Academic integrity is the attitude of approaching your academic work honestly, by completing and
+submitting your own original work, attributing and acknowledging your sources when necessary.
+Understanding good academic practice in written and oral work is a key element of academic
+integrity. It is a positive aspect of joining an academic community, showing familiarity with and
+acknowledging sources of evidence. The skills you require at higher education may differ from
+those learned elsewhere such as school or college.
+You will be required to follow specific academic conventions which include acknowledging the work
+of others through appropriate referencing and citation as explicitly as possible. If you include ideas
+or quotations that have not been appropriately acknowledged, this may be seen as plagiarism
+which is a form of academic misconduct. If you require support around referencing, please contact
+the Centre for Academic Success
+It is important to recognise that seeking out learning around academic integrity will help reduce the
+risk of misconduct in your work. Skills such as paraphrasing, referencing and citation are integral to
+acting with integrity and you can develop and advance these key academic skills through the
+Centre for Academic Success (CAS).
+To learn more about academic integrity and its importance at university, you can access CAS
+resources on Moodle. Furthermore, you can book on to workshops and request 1-2-1 support
+around key academic skills.
+Academic Misconduct
+Academic misconduct is conduct that has or may have the effect of providing you with an unfair
+advantage by relying on dishonest means to gain advantage and which therefore compromises
+your academic integrity.
+The Academic Misconduct procedure sets out the process we will follow, and the penalties we may
+apply, in cases where we believe you may have compromised your academic integrity by
+committing academic misconduct. The Academic Misconduct Procedure and information about
+academic support is available at: https://icity.bcu.ac.uk/Student-Affairs/Appeals-andResolutions/Academic-Misconduct-Procedure
+
+3
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+Assessment Details:
+Title: Assessment 2 – Final Report
+Type: Coursework
+Style: Python code + Report
+Rationale: This assignment aims to check students’ ability to build, implement, and evaluate
+an appropriate model to solve the proposed problem of Assessment 1. It also aims to
+check their ability to communicate and discuss the results. (assessment weighting is
+80%).
+Description: The students must complete the following activities:
+•
+•
+•
+•
+•
+
+Students must demonstrate their ability to implement and validate an appropriate
+model to solve the proposed problem.
+Students should employ theoretical concepts to build an appropriate model and solve
+the proposed problem in a systematic way.
+Students must demonstrate their ability in evaluating the performance of the
+proposed model.
+Students must demonstrate their ability to professionally communicate the results.
+Students should show their developing work for Assessment 2 to module tutors
+during lecture sessions and submit a draft version of Assessment 2 (Moodle
+submission by week 11. By this deadline, students must also consult the module
+tutors on how to receive feedback on their draft work. To quickly resolve such issues,
+students must consult their module tutors during the lecture sessions.
+
+Each student will submit Assessment 2 as a written report as detailed in Additional
+Information below.
+Additional information:
+• Each student will submit Assessment 2 as a written report. (Moodle submission by
+the given deadline). For completion, the report for Assessment 2 must also include
+the Python code used to build the model and associated evaluation plots. The report
+must include:
+o Title of the report.
+o Name and Student ID.
+o Abstract: what are the main findings of the report?
+o Section 1: Introduction. This section should summarise and highlight the aim
+of the report, a brief description of the selected dataset and the achievements
+of the report, and finally describe how the report is organised.
+o Section 2: Problem statement. Provide a detailed description of the dataset
+and the deep learning problem.
+o Section 3: Proposed method. Provide a full description of the proposed
+methodology including the pre-processing phase.
+4
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+•
+
+o Section 4: Experimental Results. Provide a detailed description of the
+parameter settings, evaluation process, and obtained results.
+o Section 5: Summary. Discuss and highlight the main findings in this report.
+o References (as per Harvard Referencing Style: https://icity.bcu.ac.uk/Libraryand-Learning-Resources/Referencing/harvard-referencing).
+Students must produce their reports using LaTeX.
+
+For advice on writing style, referencing and academic skills, please make use of the Centre
+for Academic Success: https://icity.bcu.ac.uk/celt/centre-for-academic-success
+Workload: Assessment 2 will have a maximum word count of 3000 excluding figures and
+references.
+A typical student will spend up to 70 hours of study to pass this assessment.
+Transferrable skills:
+•
+•
+•
+•
+•
+•
+
+Problem solving
+Programming skills
+Analytical skills
+Time management
+Project management
+Written communication skills
+
+5
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+Marking Criteria:
+Table of Assessment Criteria and Associated Grading Criteria
+Task
+Assessment
+Criteria
+
+→
+
+Weighting:
+Grading
+Criteria
+0 – 29%
+F
+
+Assessment 2
+2.
+Validate deep
+learning
+methods using
+modern deep
+leaning tools.
+
+3.
+Professionally
+report deep
+learning results
+providing clear
+solutions to the
+identified
+knowledge
+discovery
+problems.
+
+4.
+Critically
+appraise recent
+trends in deep
+learning
+literature and
+industry
+relevant to your
+work.
+
+40%
+The validation is
+missing or
+inaccurate/wrongl
+y conducted.
+
+20%
+Non-existent
+experimental
+details.
+
+20%
+Little to no
+rationale is given
+of the importance
+of deep learning
+in relative
+applications.
+
+Wrong
+techniques have
+been used.
+No parameter
+setting is
+included.
+
+No findings have
+been highlighted
+in the report.
+A poor
+organisation of
+the report makes
+it very hard to
+understand.
+
+Python code is
+missing.
+Model has not
+been evaluated.
+
+6
+
+Sentence,
+paragraph and
+section
+structuring is
+poor.
+
+Little to no
+information is
+given for the
+comparison
+between the
+different deep
+learning
+approaches and
+software tools in
+relative
+applications.
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+30 – 39%
+E
+
+The validation of
+the method is
+quite misleading.
+
+Poor existent
+experimental
+details.
+
+Misleading
+techniques have
+been used.
+
+Poor and nonsignificant
+findings have
+been highlighted
+in the report.
+
+Parameter setting
+is missed
+Comments in the
+Python code are
+either missing or
+are irrelevant.
+
+40 – 49%
+D
+
+Performance
+evaluation is
+missed.
+Satisfactory
+validation.
+Satisfactory
+techniques have
+been used.
+Parameter setting
+is missed
+Comments in the
+Python code are
+at minimal.
+
+Performance
+evaluation is
+incomplete.
+
+7
+
+Poor grammar
+and poor
+academic writing
+style are used.
+
+The report shows
+satisfactory
+experimental
+details.
+Some findings
+have been
+highlighted in the
+report.
+Grammar is
+reasonable but
+the academic
+writing style is
+unacceptable.
+
+The comparison
+between the
+different methods
+is conducted
+poorly.
+Sentence,
+paragraph and
+section
+structuring shows
+little
+understanding of
+the work.
+
+The comparison
+between the
+different deep
+learning
+approaches and
+software tools in
+relative
+applications are
+conducted but not
+complete.
+
+Sentence,
+paragraph and
+section
+structuring shows
+a shallow
+understanding of
+the story.
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+50 – 59%
+C
+
+The validation
+process is
+acceptable.
+
+The report shows
+acceptable
+experimental
+details.
+
+Accepted
+techniques have
+been used.
+Parameter setting
+is provided but
+not clear
+Comments in the
+Python code are
+not complete.
+
+All the findings
+have been
+highlighted in the
+report but not
+clearly delivered.
+Grammar is
+acceptable but
+academic writing
+style can be
+noticeably
+improved.
+
+Performance
+evaluation is not
+clear.
+60 – 69%
+B
+
+The validation
+process is
+missing
+clarification.
+
+The report shows
+good
+experimental
+details but not in
+a systematic way.
+
+Appropriate
+techniques have
+been used.
+Parameter setting
+is incomplete.
+Comments in the
+Python code are
+provided in most
+parts.
+
+Performance
+evaluation is
+clear, but more
+metrics are
+needed.
+
+8
+
+Findings have
+been clearly
+highlighted in the
+report.
+Grammar is
+acceptable but
+academic writing
+style can be a bit
+improved.
+
+The comparison
+between the
+different deep
+learning
+approaches and
+software tools in
+relative
+applications is
+well conducted
+but needs
+improvement.
+Sentence,
+paragraph and
+section
+structuring
+provides an
+understanding of
+the story but
+needs
+improvement.
+The comparison
+between the
+different deep
+learning
+approaches and
+software tools in
+relative
+applications is
+well conducted
+but need further
+attention.
+
+Sentence,
+paragraph and
+section
+structuring
+provides a highlevel of
+understanding
+but needs further
+attention.
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+70 – 79%
+A
+
+The validation
+process is
+complete.
+Good techniques
+have been used.
+Parameter setting
+is complete but
+missing
+clarification.
+
+80 – 89%
+A+
+
+The report shows
+good
+experimental
+details organised
+systematically.
+Important findings
+have been clearly
+highlighted in the
+report.
+
+Comments in the
+Python code are
+thorough but not
+concise.
+
+Grammar is
+excellent but the
+academic writing
+style is technically
+sound.
+
+The validation
+process is
+complete with
+clear graphs.
+
+The report shows
+excellent
+experimental
+details.
+
+Excellent
+techniques have
+been used.
+
+Findings are
+significant and
+accurately
+highlighted in the
+report.
+
+Parameter setting
+is complete.
+Comments in the
+Python code are
+concise in all
+parts.
+
+9
+
+Grammar and
+academic writing
+style are
+excellent.
+
+The comparison
+between the
+different deep
+learning
+approaches and
+software tools in
+relative
+applications is
+nearly completed.
+Sentence,
+paragraph and
+section
+structuring
+provides a clear
+understanding of
+the story.
+The comparison
+between the
+different deep
+learning
+approaches and
+software tools is
+professionally
+conducted but
+relative
+applications have
+not been fully
+covered.
+Sentence,
+paragraph and
+section
+structuring is
+excellent.
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+90 – 100%
+A*
+
+The validation
+process is
+complete with
+excellent graphs.
+Outstanding
+techniques have
+been used.
+Parameter setting
+is complete with
+outstanding
+explanation.
+Comments in the
+Python code are
+excellent and
+concise in all
+parts.
+
+10
+
+The report shows
+excellent and
+scientificallysound
+experimental
+details.
+Findings are
+appealing and
+professionally
+demonstrated in
+the report.
+Grammar and
+academic writing
+style are
+appealing.
+
+The comparison
+between the
+different deep
+learning
+approaches and
+software tools in
+relative
+applications is
+professionally
+conducted.
+Sentence,
+paragraph and
+section
+structuring is
+appealing.
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+Submission Details:
+•
+•
+
+Format: Required software for producing the reports is LaTeX.
+File format for the submissions is PDF.
+
+Regulations:
+If you submit an assessment late at the first attempt, then you will be subject to one of the
+following penalties:
+•
+•
+
+•
+
+if the submission is made between 1 and 24 hours after the published deadline the
+original mark awarded will be reduced by 5%. For example, a mark of 60% will be
+reduced by 3% so that the mark that the student will receive is 57%. ;
+if the submission is made between 24 hours and one week (5 working days) after
+the published deadline the original mark awarded will be reduced by 10%. For
+example, a mark of 60% will be reduced by 6% so that the mark the student will
+receive is 54%.
+if the submission is made after 5 days following the deadline, your work will be
+deemed as a fail and returned to you unmarked.
+
+The reduction in the mark will not be applied in the following two cases:
+•
+
+the mark is below the pass mark for the assessment. In this case the mark achieved
+by the student will stand
+
+•
+
+where a deduction will reduce the mark from a pass to a fail. In this case the mark
+awarded will be the threshold (i.e.50%)
+
+Please note:
+• If you submit a re-assessment late then it will be deemed as a fail and returned
+to you unmarked.
+
+11
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+Feedback:
+Feedback for each deliverable will be provided via Moodle. However, for Assessment 1
+the students are strongly encouraged to discuss their submission in person with the tutors.
+The students are also strongly encouraged to discuss their draft work with tutors in lecture
+sessions, whenever time permits.
+Marks and Feedback on your work will normally be provided within 20 working days of its
+submission deadline.
+
+Where to get help:
+Students can seek reasonable feedback (no more than 10 minutes on average each
+week) outside lecture sessions by contacting the module tutors via email.
+Students can get additional support from the library support for searching for information
+and finding academic sources. See their iCity page for more information:
+http://libanswers.bcu.ac.uk/
+The Centre for Academic Success offers 1:1 advice and feedback on academic writing,
+referencing, study skills and maths/statistics/computing. See their iCity page for more
+information: https://icity.bcu.ac.uk/celt/centre-for-academic-success
+Link to My Assignment Planner tool: http://library.bcu.ac.uk/MAP2/freecalc-mail/
+
+Fit to Submit:
+Are you ready to submit your assignment – review this assignment brief and consider
+whether you have met the criteria. Use any checklists provided to ensure that you have
+done everything needed.
+The lists of sections for each deliverable is provided in “Assessment Details” earlier in this
+document. Those lists of sections constitute the checklists.
+
+12
+
+BIRMINGHAM CITY UNIVERSITY
+FACULTY OF COMPUTING, ENGINEERING AND THE BUILT
+ENVIRONMENT
+COURSEWORK ASSIGNMENT BRIEF
+
+CMP6232 – Deep Neural Networks and Ethics
+
+Check List:
+
+Completed? (tick the item).
+
+Did you follow all the steps outlined in the
+section titled ‘Assessment Details’?
+Did you Include all the sections as outlined
+in ‘Assessment Details’?
+Did you use Harvard Referencing?
+Did you follow the conventions of
+academic writing?
+Is the file to be submitted in the PDF
+format?
+
+13
+
+

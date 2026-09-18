@@ -1,0 +1,201 @@
+% Deep Neural Networks and Ethics (CMP6232 / CMP6228)
+% Coursework Assessment 2 - Final Report (Weighting 80%)
+% Formatting: 11pt, 1.5 line spacing, BCU Harvard referencing (biblatex authoryear)
+\documentclass[11pt,a4paper]{article}
+
+% ---------------------------------------------------------------------------
+% Metadata
+% ---------------------------------------------------------------------------
+\newcommand{\ProjectTitle}{Nebium: A Causal Transformer with Rotary Position Embeddings and SwiGLU for Self-Supervised Sequence Modeling in Chess}
+\newcommand{\ModuleCode}{CMP6232 / CMP6228}
+\newcommand{\ModuleTitle}{Deep Neural Networks and Ethics}
+\newcommand{\Coordinator}{Dr. Khalid Ismail}
+\newcommand{\StudentName}{Nabin Oli}
+\newcommand{\StudentNumber}{23189629}
+\newcommand{\SubmissionDate}{May 15, 2026}
+\newcommand{\UniversityName}{Birmingham City University}
+\newcommand{\FacultyName}{Faculty of Computing, Engineering and the Built Environment}
+
+\InputIfFileExists{wordcount.tex}{}{}
+
+% ---------------------------------------------------------------------------
+% Packages
+% ---------------------------------------------------------------------------
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{microtype}
+\usepackage{csquotes}
+
+% BCU Harvard (Cite Them Right-style) via biblatex authoryear
+\usepackage[
+  backend=biber,
+  style=authoryear,
+  sorting=nyt,
+  natbib=true,
+  maxcitenames=2,
+  mincitenames=1,
+  maxbibnames=99,
+  uniquelist=false,
+  giveninits=true,
+  uniquename=init,
+  dashed=false,
+  doi=true,
+  url=true,
+  urldate=long,
+  date=year,
+  dateabbrev=false
+]{biblatex}
+
+\addbibresource{refs.bib}
+
+% In-text citation formatting: (Author, Year)
+\DeclareDelimFormat{nameyeardelim}{\addcomma\space}
+\renewcommand*{\finalnamedelim}{\addspace\bibstring{and}\space}
+\renewcommand*{\finallistdelim}{\addspace\bibstring{and}\space}
+\DefineBibliographyStrings{english}{%
+  andothers = {et\addabbrvspace al\adddot},
+  urlfrom   = {Available at},
+  urlseen   = {Accessed}
+}
+\DeclareNameAlias{sortname}{family-given}
+\DeclareNameAlias{default}{family-given}
+\DeclareNameAlias{author}{family-given}
+\DeclareNameAlias{editor}{family-given}
+\DeclareFieldFormat{title}{#1}
+\DeclareFieldFormat[article,inproceedings,incollection,online,thesis]{title}{#1}
+\DeclareDelimFormat[bib]{nametitledelim}{\addspace}
+\renewcommand*{\labelnamepunct}{\addspace}
+\DeclareFieldFormat{pages}{pp\adddot\addnbspace#1}
+\DeclareFieldFormat[article,inproceedings,incollection]{pages}{pp\adddot\addnbspace#1}
+\DeclareFieldFormat{url}{\bibstring{urlfrom}\addcolon\space\url{#1}}
+\DeclareFieldFormat{urldate}{\mkbibbrackets{\bibstring{urlseen}\addspace#1}}
+\DeclareFieldFormat{doi}{\url{https://doi.org/#1}}
+\AtEveryBibitem{\clearfield{month}}
+\setlength{\bibhang}{1.5em}
+\setlength{\bibitemsep}{0.6\baselineskip}
+
+% Code Listing Configuration
+\definecolor{codegreen}{rgb}{0,0.55,0.2}
+\definecolor{codegray}{rgb}{0.45,0.45,0.45}
+\definecolor{codepurple}{rgb}{0.5,0,0.7}
+\definecolor{backcolour}{rgb}{0.97,0.98,0.99}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=6pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=4,
+    frame=single,
+    rulecolor=\color{black!20}
+}
+\lstset{style=mystyle}
+
+\onehalfspacing
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue,
+  pdftitle={\ProjectTitle},
+  pdfauthor={\StudentName}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small \ModuleCode}
+\fancyhead[R]{\small Student ID: \StudentNumber}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\captionsetup{font=small,labelfont=bf}
+
+% ---------------------------------------------------------------------------
+\begin{document}
+
+% ============================ Cover page ===================================
+\begin{titlepage}
+  \centering
+  \vspace*{1.0cm}
+
+  {\large \textbf{\UniversityName}\par}
+  \vspace{0.3cm}
+  {\large \FacultyName\par}
+  \vspace{0.2cm}
+  {\normalsize Department of Computing and Digital Technology\par}
+
+  \vspace{1.8cm}
+  {\LARGE\bfseries \ProjectTitle\par}
+  \vspace{0.6cm}
+  {\large Assessment 2: Technical Research Report and Empirical Evaluation\par}
+
+  \vspace{1.6cm}
+  \begin{tabular}{ll}
+    \textbf{Module Code \& Title:} & \ModuleCode: \ModuleTitle \\[0.4em]
+    \textbf{Module Coordinator:}   & \Coordinator \\[0.4em]
+    \textbf{Student Name:}         & \StudentName \\[0.4em]
+    \textbf{Student ID:}           & \StudentNumber \\[0.4em]
+    \textbf{Academic Year:}        & 2025--26 (Level 6) \\[0.4em]
+    \textbf{Submission Date:}      & \SubmissionDate \\[0.4em]
+    \textbf{Main Body Word Count:} & \ReportWordCount\ words (Limit: 3000 words + 10\%)
+  \end{tabular}
+
+  % \vfill
+  % \begin{minipage}{0.9\textwidth}
+  %   \footnotesize\centering
+  %   \textit{Declaration: This report represents my own individual work and has been conducted in accordance with Birmingham City University's Academic Integrity and Ethical Regulations. All code, empirical evaluations, and figures presented herein are grounded on the Nebium deep neural network framework.}
+  % \end{minipage}
+\end{titlepage}
+
+% ============================ Front matter =================================
+\pagenumbering{roman}
+
+\input{sections/01_abstract}
+
+\clearpage
+\tableofcontents
+\clearpage
+\listoffigures
+\listoftables
+\clearpage
+
+% ============================ Main body ====================================
+\pagenumbering{arabic}
+\input{sections/02_introduction}
+\input{sections/00_tools}
+\input{sections/03_problem_statement}
+\input{sections/04_proposed_method}
+\input{sections/05_experiments}
+\input{sections/06_summary}
+
+\clearpage
+\printbibliography[heading=bibintoc,title={References}]
+
+\clearpage
+\appendix
+\input{sections/07_code_appendix}
+
+\end{document}

@@ -1,0 +1,24 @@
+\section{Software Tools, Frameworks, and Deployment Pipeline}
+\label{sec:tools}
+
+Developing and serving autoregressive game transformers requires frameworks that balance research expressiveness, compiler efficiency, and low-latency edge deployment. This section critically evaluates Nebium's software tooling, contrasting the modern PyTorch~2.3 and GGUF pipeline against legacy deployment ecosystems.
+
+\subsection{Deep Learning Framework: PyTorch vs. Legacy TensorFlow}
+\label{sec:tools_framework}
+While early neural game engines relied on TensorFlow or Keras for static computational graph execution, modern research has overwhelmingly converged on PyTorch~2.3 \parencite{paszke2019pytorch}. TensorFlow's declarative model (\texttt{@tf.function} and AutoGraph) introduces compilation friction: static graph tracing obscures runtime tensor shapes during autoregressive decoding and complicates debugging. In contrast, PyTorch's native dynamic execution graph, augmented by \texttt{torch.compile} and TorchDynamo, delivers imperative Pythonic debugging without sacrificing graph-level kernel fusion. Crucially, PyTorch~2.3 natively integrates scaled dot-product attention (\texttt{torch.nn.functional.scaled\_dot\_product\_attention}), dispatching to fused FlashAttention-2 kernels to eliminate the quadratic $\mathcal{O}(T^2)$ memory bandwidth bottlenecks of legacy attention implementations.
+
+\subsection{Inference and Edge Deployment: GGUF vs. ONNX Runtime}
+\label{sec:tools_deployment}
+Historically, deploying trained transformers to edge environments relied on ONNX Runtime \parencite{bai2019onnx} or TensorFlow Serving. However, generative AI deployment has shifted toward single-file encapsulated binary formats via the GGUF specification in \texttt{llama.\allowbreak cpp} \parencite{gerganov2023llamacpp}. Traditional ONNX pipelines decouple tensor computation graphs (\texttt{.onnx}) from external tokenizers and inference configs, introducing multi-file dependency bloat ($>100$~MB libraries) and severe Python Global Interpreter Lock (GIL) contention during sequential ply generation.
+
+In contrast, GGUF packages tensor weights, quantization scales, model hyperparameters, and tokenization dictionaries into a single self-contained binary. Leveraging POSIX zero-copy memory mapping (\texttt{mmap}), GGUF enables near-zero cold-start initialization and eliminates runtime Python dependencies entirely. Furthermore, GGUF's block-wise $k$-quantization (\texttt{Q4\_K\_M}) applies mixed 4-bit precision to feed-forward tensors while retaining higher precision for critical attention projection matrices. As demonstrated in Section~\ref{sec:exp_latency}, this reduces Nebium's footprint by 63.7\% (113.6~MB to 41.2~MB) and achieves 4.1~ms per-move CPU latency, outperforming traditional ONNX INT8 runtimes in throughput and operational simplicity.
+
+\subsection{Domain Libraries and Serving Infrastructure}
+\label{sec:tools_ecosystem}
+The broader Nebium ecosystem integrates specialized domain libraries:
+\begin{itemize}
+    \item \textbf{python-chess} \parencite{romstad2024pythonchess}: Provides deterministic 64-bit bitboard manipulation, move generation, and legal move validation, eliminating illegal hallucinations.
+    \item \textbf{Stockfish 16} \parencite{stockfish2023}: Communicates via UCI to establish ground-truth centipawn evaluations ($\Delta\text{CP}$) and benchmark playing strength.
+    \item \textbf{HuggingFace Tokenizers}: Employs a compiled Rust backend to train and execute custom 5,000-merge BPE (\texttt{ChessTokenizerHF}) with high throughput.
+    \item \textbf{Zstandard \& FastAPI}: \texttt{zstandard} enables streaming decompression of multi-gigabyte Lichess PGN archives, while FastAPI and Uvicorn deliver an asynchronous RESTful microservice for responsive chessboard interactions.
+\end{itemize}
