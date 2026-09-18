@@ -1,3 +1,10 @@
+"""
+Hydra configuration schemas and structured dataclasses for Nebium.
+
+Defines strongly typed configurations for model architecture, data pipeline,
+optimizer/scheduler training parameters, evaluation, and experiment tracking.
+"""
+
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -6,6 +13,9 @@ from hydra.core.config_store import ConfigStore
 
 @dataclass
 class ModelConfig:
+    """
+    Hyperparameters defining the Nebium neural network architecture.
+    """
     _target_: str = "src.models.transformer.nebium.Nebium"
     vocab_size: int = 5000
     d_model: int = 64
@@ -19,6 +29,7 @@ class ModelConfig:
     max_seq_len: int = 128
     bias: bool = False
     tie_word_embeddings: bool = False
+
 
 
 @dataclass

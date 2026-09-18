@@ -1,0 +1,26 @@
+urls:
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-02.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-03.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-04.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-05.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-06.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-07.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-08.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-09.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-10.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-11.pgn.zst
+  - https://database.lichess.org/standard/lichess_db_standard_rated_2013-12.pgn.zst
+raw_path: data/raw
+processed_path: data/processed/lichess_2013
+tokenizer_path: data/tokenizer/lichess_2013
+format: pgn_zst
+max_games: 5000000
+min_moves: 20
+train_split: 0.95
+seed: 42
+force_reprocess: false
+hf_dataset:
+  repo_id: null
+  push: true
+  revision: main

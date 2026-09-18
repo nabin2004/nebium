@@ -1,3 +1,11 @@
+"""
+Model training, evaluation, and checkpoint orchestration loop for Nebium.
+
+Implements AMP mixed precision training with AdamW, linear warmup cosine decay,
+gradient norm clipping, validation loss aggregation, and puzzle evaluation benchmarks.
+"""
+
+import json
 import math
 import os
 import time
@@ -10,8 +18,7 @@ from torch.amp import GradScaler, autocast
 from torch.optim.lr_scheduler import LambdaLR
 from tqdm import tqdm
 
-import json
-from src.evaluation.chess_metrics import generate_sample_games, evaluate_puzzles
+from src.evaluation.chess_metrics import evaluate_puzzles, generate_sample_games
 from src.evaluation.metrics import merge_metric_batches, next_token_metrics
 from src.logging.base import Logger
 
@@ -24,7 +31,20 @@ def save_checkpoint(
     epoch: int,
     global_step: int,
     scaler: GradScaler,
-):
+) -> None:
+    """
+    Serializes complete model weights, optimizer momentum, learning rate scheduler,
+    and AMP gradient scaler states to disk.
+
+    Args:
+        path: Filepath destination for the checkpoint (.pt).
+        model: Training neural network model.
+        optimizer: Optimizer instance.
+        scheduler: Optional learning rate scheduler.
+        epoch: Current epoch index.
+        global_step: Global optimization step counter.
+        scaler: AMP gradient scaler.
+    """
     state = {
         "model": model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
         "optimizer": optimizer.state_dict(),

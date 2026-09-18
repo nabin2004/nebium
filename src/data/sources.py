@@ -1,6 +1,13 @@
+"""
+Data source resolution and streaming utilities for Nebium.
+
+Handles path resolution, decompression of .pgn and .pgn.zst archives, and
+streaming parsing of PGN game headers and move nodes.
+"""
+
 import io
-from contextlib import contextmanager
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import chess.pgn
@@ -9,10 +16,21 @@ from omegaconf import DictConfig
 
 
 def resolve_path(path: str | Path, root: str | Path | None = None) -> Path:
+    """
+    Resolves relative file paths against the optional project root directory.
+
+    Args:
+        path: Relative or absolute Path or path string.
+        root: Optional workspace root directory.
+
+    Returns:
+        Fully resolved Path object.
+    """
     resolved = Path(path)
     if not resolved.is_absolute() and root is not None:
         resolved = Path(root) / resolved
     return resolved
+
 
 
 def resolve_raw_path(raw_path: Path, data_format: str) -> Path:

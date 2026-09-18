@@ -1,13 +1,26 @@
+"""
+Hardware and model computational profiling utilities for Nebium.
+
+Provides parameter counting and FLOP estimation for transformer forward passes.
+"""
+
 import torch
 
 
 def count_parameters(model: torch.nn.Module) -> dict[str, int]:
     """
-    Returns the parameter counts (total and trainable).
+    Computes total and trainable parameter counts for a PyTorch module.
+
+    Args:
+        model: Target PyTorch module.
+
+    Returns:
+        Dictionary with 'total_params' and 'trainable_params'.
     """
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     return {"total_params": total, "trainable_params": trainable}
+
 
 
 def estimate_flops(

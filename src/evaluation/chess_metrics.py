@@ -1,3 +1,10 @@
+"""
+Chess-specific empirical evaluation protocols for Nebium.
+
+Integrates python-chess for board state reconstruction, legal move rate tracking,
+tactical puzzle suite benchmarking, and unconstrained move sampling.
+"""
+
 from typing import Any
 import chess
 import torch
@@ -14,8 +21,24 @@ def generate_sample_games(
     top_p: float = 0.95,
 ) -> list[dict[str, Any]]:
     """
-    Generates continuation moves from prompt positions and measures move legality.
-    Returns structured results for each sample including legality rate and formatted moves.
+    Autoregressively rolls out move continuations from prompt positions,
+    validating legal moves on an internal `chess.Board`.
+
+    Stops immediately if an unparseable or illegal move is generated to prevent
+    board divergence from falsely inflating legality metrics.
+
+    Args:
+        model: Nebium or compatible transformer model.
+        tokenizer: Tokenizer wrapper implementing encode and decode.
+        device: Target execution device (CPU or CUDA).
+        prompts: List of space-separated UCI move sequences (default: ["", "e2e4", "d2d4"]).
+        max_moves: Maximum plies to generate per prompt.
+        temperature: Softmax sampling temperature.
+        top_k: Top-k vocabulary truncation.
+        top_p: Nucleus sampling threshold.
+
+    Returns:
+        List of dictionaries detailing generated moves, legal move counts, and stop reasons.
     """
     model.eval()
     if prompts is None:

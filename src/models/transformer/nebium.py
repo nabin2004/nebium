@@ -1,3 +1,10 @@
+"""
+Nebium: Causal Decoder-Only Transformer for Chess Move Prediction.
+
+Encapsulates token embeddings, stacked TransformerBlocks with RoPE and SwiGLU,
+RMSNorm pre-normalization, language modeling head, and constrained decoding routines.
+"""
+
 import torch
 from torch import nn
 
@@ -7,6 +14,24 @@ from src.models.transformer.norm import build_norm
 
 
 class Nebium(nn.Module):
+    """
+    Nebium autoregressive causal transformer.
+
+    Args:
+        vocab_size: Number of unique tokens in the vocabulary (default: 5,000).
+        d_model: Hidden dimensionality of the residual stream (default: 512).
+        n_heads: Number of attention heads (default: 8).
+        n_layers: Number of stacked transformer layers (default: 6).
+        dropout: Dropout rate applied across attention and residual pathways.
+        max_seq_len: Maximum sequence context window length (default: 512).
+        positional_encoding: Positional strategy, either 'rope' (default) or 'learned'.
+        attention_type: Attention mechanism variant ('standard').
+        activation: Feed-forward non-linearity, 'swiglu' (default) or 'gelu'.
+        norm: Normalization variant, 'rmsnorm' (default) or 'layernorm'.
+        bias: Whether linear projection layers contain bias parameters (default: False).
+        tie_word_embeddings: Whether to tie output projection weights with token embeddings.
+    """
+
     def __init__(
         self,
         vocab_size: int,
@@ -56,6 +81,7 @@ class Nebium(nn.Module):
 
     @staticmethod
     def _init_weights(module: nn.Module) -> None:
+        """Applies truncated normal initialization matching standard transformer scaling."""
         if isinstance(module, nn.Linear):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if module.bias is not None:
@@ -64,6 +90,16 @@ class Nebium(nn.Module):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        """
+        Computes next-token probability logits across the sequence.
+
+        Args:
+            input_ids: Token indices tensor of shape (batch, seq_len).
+            attention_mask: Binary padding mask of shape (batch, seq_len).
+
+        Returns:
+            Unnormalized logits of shape (batch, seq_len, vocab_size).
+        """
         hidden = self.token_embed(input_ids)
         if self.learned_pos is not None:
             hidden = self.learned_pos(hidden)
@@ -83,6 +119,22 @@ class Nebium(nn.Module):
         top_p: float = 1.0,
         legal_tokens_fn = None,
     ) -> torch.Tensor:
+        """
+        Autoregressively generates next move tokens using temperature, top-k/top-p sampling,
+        or dynamic legal move logit masking.
+
+        Args:
+            input_ids: Prompt token indices of shape (batch, seq_len).
+            attention_mask: Prompt attention mask of shape (batch, seq_len).
+            max_new_tokens: Number of subsequent tokens to generate.
+            temperature: Softmax sampling temperature (0.0 for greedy decoding).
+            top_k: Number of highest probability vocabulary tokens to filter.
+            top_p: Nucleus sampling cumulative probability threshold.
+            legal_tokens_fn: Optional callable mapping sequence IDs to allowed legal token IDs.
+
+        Returns:
+            Concatenated token tensor of shape (batch, seq_len + max_new_tokens).
+        """
         tokens = input_ids
         mask = attention_mask
         for _ in range(max_new_tokens):
@@ -138,6 +190,19 @@ class Nebium(nn.Module):
         beam_width: int = 3,
         legal_tokens_fn = None,
     ) -> torch.Tensor:
+        """
+        Executes beam search decoding with cumulative log-probability ranking.
+
+        Args:
+            input_ids: Prompt token tensor of shape (1, seq_len).
+            attention_mask: Binary mask of shape (1, seq_len).
+            max_new_tokens: Number of future tokens to generate.
+            beam_width: Number of parallel candidate beams to maintain.
+            legal_tokens_fn: Optional callable filtering candidate tokens by board legality.
+
+        Returns:
+            Best sequence token tensor of shape (1, seq_len + max_new_tokens).
+        """
         batch_size = input_ids.size(0)
         assert batch_size == 1, "Beam search only supports batch size 1"
         
@@ -172,3 +237,4 @@ class Nebium(nn.Module):
             
         best_seq = beams[0][1]
         return torch.tensor([best_seq], dtype=torch.long, device=input_ids.device)
+

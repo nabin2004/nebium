@@ -1,8 +1,17 @@
+"""
+No-op logger implementation for headless and testing execution.
+"""
+
 from typing import Any
 
 
 class NullLogger:
+    """
+    A silent logger that consumes calls without performing I/O or network requests.
+    """
+
     def log_config(self, cfg: Any) -> None:
+
         return None
 
     def log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:

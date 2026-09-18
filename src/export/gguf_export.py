@@ -1,3 +1,10 @@
+"""
+GGUF model binary exporter for Nebium.
+
+Converts trained PyTorch model checkpoints and BPE tokenizer metadata into
+standardized GGUF container format for low-latency inference with llama.cpp.
+"""
+
 import os
 import re
 from pathlib import Path
@@ -8,7 +15,16 @@ import torch
 
 
 def _map_tensor_name(py_name: str) -> str:
-    """Maps PyTorch module parameter names to standard GGUF tensor names."""
+    """
+    Maps PyTorch module parameter names to standard GGUF tensor naming conventions.
+
+    Args:
+        py_name: PyTorch state dictionary parameter key.
+
+    Returns:
+        Standardized GGUF tensor name.
+    """
+
     if py_name in ("token_embed.embedding.weight", "token_embed.weight"):
         return "token_embd.weight"
     if py_name in ("learned_pos.embedding.weight", "learned_pos.weight"):
@@ -79,7 +95,22 @@ def export_to_gguf(
 ) -> Path:
     """
     Exports a trained Nebium PyTorch model to GGUF format for local deployment.
-    Uses the official gguf library (gguf.GGUFWriter).
+
+    Constructs GGUF header, KV metadata (context length, head count, RoPE dimension,
+    BPE token scores), and serializes tensor arrays in fp16 or fp32 precision.
+
+    Args:
+        model: Trained PyTorch Nebium model.
+        tokenizer: Initialized ChessTokenizer with vocabulary mappings.
+        output_path: Destination path for the `.gguf` file.
+        precision: Floating-point precision, either 'fp16' or 'fp32'.
+        architecture: GGUF architecture identifier string (default: 'nebium').
+
+    Returns:
+        Path pointing to the written GGUF binary file.
+
+    Raises:
+        ImportError: If the `gguf` python package is not installed.
     """
     try:
         import gguf

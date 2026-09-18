@@ -1,3 +1,11 @@
+"""
+Causal Multi-Head Self-Attention for Nebium.
+
+Implements scaled dot-product attention accelerated by PyTorch's native
+`torch.nn.functional.scaled_dot_product_attention` (SDPA), with optional
+Rotary Position Embeddings (RoPE) and causal upper-triangular masking.
+"""
+
 import torch
 from torch import nn
 
@@ -5,6 +13,21 @@ from src.models.transformer.rope import RotaryEmbedding, apply_rotary_pos_emb
 
 
 class MultiHeadSelfAttention(nn.Module):
+    """
+    Causal Multi-Head Self-Attention layer.
+
+    Supports optional Rotary Position Embedding (RoPE) and falls back to
+    manual scaled dot-product attention when SDPA is disabled or unavailable.
+
+    Args:
+        d_model: Model dimensionality (must be divisible by `n_heads`).
+        n_heads: Number of parallel attention heads.
+        dropout: Attention and residual dropout probability.
+        max_seq_len: Maximum sequence length for the RoPE cache.
+        use_rope: Whether to apply rotary position embeddings to query and key states.
+        bias: Whether linear projection layers include additive bias terms (default: False).
+    """
+
     def __init__(
         self,
         d_model: int,
@@ -29,14 +52,26 @@ class MultiHeadSelfAttention(nn.Module):
         self.rope = RotaryEmbedding(self.head_dim, max_seq_len) if use_rope else None
 
     def _split_heads(self, x: torch.Tensor) -> torch.Tensor:
+        """Splits the hidden dimension into (num_heads, head_dim)."""
         batch, seq_len, _ = x.shape
         return x.view(batch, seq_len, self.n_heads, self.head_dim).transpose(1, 2)
 
     def _merge_heads(self, x: torch.Tensor) -> torch.Tensor:
+        """Merges heads back into a single hidden dimension (num_heads * head_dim)."""
         batch, _, seq_len, _ = x.shape
         return x.transpose(1, 2).contiguous().view(batch, seq_len, self.n_heads * self.head_dim)
 
     def forward(self, x: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        """
+        Executes causal multi-head self-attention on the input representations.
+
+        Args:
+            x: Input tensor of shape (batch, seq_len, d_model).
+            attention_mask: Binary padding mask of shape (batch, seq_len) where 1 indicates valid token.
+
+        Returns:
+            Projected attention output of shape (batch, seq_len, d_model).
+        """
         query = self._split_heads(self.q_proj(x))
         key = self._split_heads(self.k_proj(x))
         value = self._split_heads(self.v_proj(x))
@@ -67,6 +102,11 @@ class MultiHeadSelfAttention(nn.Module):
 
 
 def _attention_mask(attention_mask: torch.Tensor) -> torch.Tensor:
+    """
+    Constructs a combined causal and padding boolean mask.
+
+    Returns True for positions that should be masked out (ignored).
+    """
     seq_len = attention_mask.size(-1)
     causal = torch.triu(
         torch.ones(seq_len, seq_len, dtype=torch.bool, device=attention_mask.device),
@@ -85,6 +125,25 @@ def build_attention(
     use_rope: bool,
     bias: bool = False,
 ) -> nn.Module:
+    """
+    Builds the configured attention module.
+
+    Args:
+        attention_type: Type of attention layer (e.g. 'standard').
+        d_model: Model dimensionality.
+        n_heads: Number of attention heads.
+        dropout: Attention dropout rate.
+        max_seq_len: Maximum sequence length.
+        use_rope: Whether to enable RoPE.
+        bias: Whether to include bias terms.
+
+    Returns:
+        Configured attention nn.Module.
+
+    Raises:
+        ValueError: If `attention_type` is unsupported.
+    """
     if attention_type == "standard":
         return MultiHeadSelfAttention(d_model, n_heads, dropout, max_seq_len, use_rope, bias)
     raise ValueError(f"Unknown attention_type: {attention_type}")
+

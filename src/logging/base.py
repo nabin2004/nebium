@@ -1,10 +1,25 @@
+"""
+Abstract logging protocol for Nebium.
+
+Defines the logging interface adhered to by WandBLogger and NullLogger.
+"""
+
 from typing import Any, Protocol
 
 
 class Logger(Protocol):
-    def log_config(self, cfg: Any) -> None: ...
+    """
+    Structural subtyping protocol for training metrics and artifact loggers.
+    """
 
-    def log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None: ...
+    def log_config(self, cfg: Any) -> None:
+        """Logs experiment hyperparameters and run configuration."""
+        ...
+
+    def log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:
+        """Logs scalar numerical metrics at a given training step."""
+        ...
+
 
     def log_table(
         self,

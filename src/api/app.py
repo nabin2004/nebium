@@ -1,10 +1,15 @@
+"""
+FastAPI REST inference microservice for Nebium chess move prediction.
+"""
+
 import os
-import torch
 import hydra
+import torch
 from fastapi import FastAPI
-from pydantic import BaseModel
-from hydra.utils import instantiate
 from hydra import compose, initialize
+from hydra.utils import instantiate
+from pydantic import BaseModel
+
 from src.data.prepare import get_tokenizer
 
 app = FastAPI(title="Nebium Chess API")
@@ -13,6 +18,7 @@ app = FastAPI(title="Nebium Chess API")
 MODEL = None
 TOKENIZER = None
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 @app.on_event("startup")
 def load_model():

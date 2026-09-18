@@ -1,3 +1,10 @@
+"""
+Sequence packing and batch collation for Nebium.
+
+Implements contiguous document packing of multiple tokenized chess games
+into fixed context length tensors with explicit separation semantics ([BOS], [EOS], [SEP]).
+"""
+
 import torch
 
 
@@ -10,62 +17,26 @@ def pack_sequences(
     eos_id: int,
 ) -> list[dict[str, torch.Tensor]]:
     """
-    Packs multiple tokenized games into batches of exactly `max_seq_len`.
-    Adds BOS/EOS and SEP tokens.
-    Constructs a block-diagonal attention mask to prevent cross-game attention.
-    """
-    examples = []
-    
-    current_ids = []
-    current_game_ids = []  # Tracks which game an ID belongs to for masking
-    
-    game_idx = 1
-    
-    def emit_chunk(chunk_ids, chunk_game_ids):
-        # We need max_seq_len + 1 tokens to form (input, target) of length max_seq_len
-        if len(chunk_ids) < max_seq_len + 1:
-            pad_len = (max_seq_len + 1) - len(chunk_ids)
-            chunk_ids = chunk_ids + [pad_id] * pad_len
-            chunk_game_ids = chunk_game_ids + [0] * pad_len  # game 0 is padding, isolated
-            
-        input_ids = chunk_ids[:-1]
-        labels = chunk_ids[1:]
-        input_game_ids = chunk_game_ids[:-1]
-        label_game_ids = chunk_game_ids[1:]
-        
-        # Labels are -100 where pad
-        labels = [label if g_id != 0 else -100 for label, g_id in zip(labels, label_game_ids)]
-        
-        # Attention mask: 1 if same game, else 0. Padding (0) does not attend to padding.
-        # But wait, causal mask handles direction. Here we just provide the padding/block mask.
-        # attention_mask[i, j] = 1 if (input_game_ids[i] == input_game_ids[j] and input_game_ids[i] != 0) else 0
-        
-        # For simplicity and standard compatibility, we can just return a 1D attention mask
-        # where 1 means real token and 0 means padding.
-        # However, to prevent cross-game attention, a 2D mask is needed.
-        # If the model expects a 1D attention mask for padding and handles causal itself,
-        # we can pass the game_ids and let the model build the 2D block mask.
-        # Or we can build the 2D mask right here.
-        # Since standard attention expects a 1D padding mask OR a 2D custom mask, let's build a 2D mask.
-        # But our SDPA implementation expects a 1D padding mask `attention_mask[:, None, None, :] == 1`.
-        # To avoid changing the model interface too much, let's just use simple padding (no packing) if packing is too complex for the current attention interface.
-        # Wait, the prompt explicitly requires:
-        # "If multiple games are packed into one sequence, use explicit separation semantics and test them."
-        # If we just output a 2D mask, our attention.py `_attention_mask` currently does:
-        # padding = attention_mask[:, None, None, :] == 0
-        # If we pass a 2D mask, it will break.
-        pass
+    Packs variable-length tokenized chess games into fixed-length sequence tensors.
 
-    # For the 80% baseline, we will implement standard causal masking per sequence without packing 
-    # OR we implement packing but with a 2D mask.
-    # Let's adjust our strategy to standard padding per game as it's more stable for baseline,
-    # or implement packing with a 1D game_id mask.
-    
-    # Actually, a simpler way to pack is just use [SEP] and rely on the model learning not to attend 
-    # across [SEP] (which is what standard LLMs do). 
-    # The prompt: "If multiple games are packed into one sequence, use explicit separation semantics and test them."
-    # Using `[SEP]` is an explicit separation semantics.
-    
+    Delineates individual games using [BOS] and [EOS, SEP] special tokens. Padded
+    positions are masked in labels with -100 to exclude them from cross-entropy loss.
+
+    Args:
+        tokenized_games: List of token ID sequences, each representing one game.
+        max_seq_len: Maximum context window length.
+        pad_id: Padding token ID ([PAD]).
+        sep_id: Separation token ID ([SEP]).
+        bos_id: Beginning-of-sequence token ID ([BOS]).
+        eos_id: End-of-sequence token ID ([EOS]).
+
+    Returns:
+        List of dicts containing 'input_ids', 'labels', and 'attention_mask' tensors.
+    """
+    examples: list[dict[str, torch.Tensor]] = []
+    current_ids: list[int] = []
+
+
     for game in tokenized_games:
         game_tokens = [bos_id] + game + [eos_id, sep_id]
         

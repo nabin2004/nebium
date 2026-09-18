@@ -1,3 +1,7 @@
+"""
+End-to-end rapid pipeline verification and smoke-testing utilities for Nebium.
+"""
+
 import json
 import os
 import sys
@@ -9,8 +13,8 @@ from omegaconf import DictConfig, OmegaConf
 
 from src.utils.kaggle import is_kaggle_environment
 
-
 SMOKE_TEST_CLI_FLAGS = {"--smoke-test", "--smoke_test", "-s"}
+
 
 
 def preprocess_smoke_test_args(args: list[str] | None = None) -> list[str]:

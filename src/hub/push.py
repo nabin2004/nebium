@@ -296,6 +296,20 @@ def export_checkpoint(
     metrics: dict[str, float],
     export_dir: Path,
 ) -> Path:
+    """
+    Exports PyTorch model weights, JSON configuration, tokenizer, GGUF binary,
+    and a generated Markdown model card to an export directory.
+
+    Args:
+        model: Trained PyTorch model.
+        tokenizer: Initialized ChessTokenizer.
+        cfg: Hydra configuration dictionary.
+        metrics: Dictionary of evaluation metrics.
+        export_dir: Output directory path.
+
+    Returns:
+        Path to the populated export directory.
+    """
     export_dir.mkdir(parents=True, exist_ok=True)
     state_dict = model.module.state_dict() if hasattr(model, "module") else model.state_dict()
     torch.save(state_dict, export_dir / "model.pt")
@@ -326,6 +340,22 @@ def push_to_hub(
     metrics: dict[str, float],
     export_dir: Path | None = None,
 ) -> str | None:
+    """
+    Exports model artifacts and uploads the directory to the Hugging Face Hub.
+
+    Args:
+        model: Trained PyTorch model.
+        tokenizer: Initialized ChessTokenizer.
+        cfg: Hydra configuration dictionary.
+        metrics: Evaluation metrics dictionary.
+        export_dir: Optional staging directory (default: 'export').
+
+    Returns:
+        Hugging Face repository ID string if pushed, or None if push disabled.
+
+    Raises:
+        ValueError: If `hub.repo_id` is not configured when push is enabled.
+    """
     if not bool(cfg.hub.get("push", False)):
         return None
     repo_id = cfg.hub.repo_id
@@ -341,3 +371,4 @@ def push_to_hub(
         commit_message=str(cfg.hub.get("commit_message", "Add Nebium checkpoint and GGUF model")),
     )
     return repo_id
+

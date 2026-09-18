@@ -1,3 +1,10 @@
+"""
+Dataset preparation, caching, and tokenization orchestration for Nebium.
+
+Handles downloading raw Lichess PGN/JSON archives, caching processed UCI move
+sequences, maintaining metadata manifests, and training custom BPE tokenizers.
+"""
+
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,6 +19,7 @@ from src.data.tokenizer import ChessTokenizer
 MOVES_NAME = "moves.txt"
 MANIFEST_NAME = "manifest.json"
 TOKENIZER_NAME = "tokenizer.json"
+
 
 
 def _urls(cfg: DictConfig) -> list[str]:
@@ -103,6 +111,19 @@ def _ensure_raw_paths(cfg: DictConfig, root: str | Path | None) -> list[Path]:
 
 
 def prepare_corpus(cfg: DictConfig, root: str | Path | None = None) -> tuple[list[str], bool]:
+    """
+    Prepares the pre-processed chess sequence corpus from raw data or local cache.
+
+    Checks Hugging Face Hub or local disk cache against the metadata manifest. If missing
+    or invalidated, extracts UCI move sequences from source files and writes a new manifest.
+
+    Args:
+        cfg: Hydra configuration dictionary.
+        root: Optional workspace root directory.
+
+    Returns:
+        Tuple of (list_of_uci_sequences, corpus_rebuilt_boolean).
+    """
     processed_dir = resolve_path(cfg.data.processed_path, root)
     tokenizer_dir = resolve_path(cfg.data.tokenizer_path, root)
     moves_path = processed_dir / MOVES_NAME
@@ -142,6 +163,18 @@ def get_tokenizer(
     root: str | Path | None = None,
     corpus_rebuilt: bool = False,
 ) -> ChessTokenizer:
+    """
+    Loads an existing ChessTokenizer or trains a new BPE tokenizer on the corpus.
+
+    Args:
+        cfg: Hydra configuration dictionary.
+        sequences: Optional list of move sequences if tokenizer must be trained from scratch.
+        root: Optional workspace root.
+        corpus_rebuilt: Boolean flag indicating if corpus was rebuilt, forcing tokenizer retrain.
+
+    Returns:
+        Loaded or trained ChessTokenizer instance.
+    """
     processed_dir = resolve_path(cfg.data.processed_path, root)
     tokenizer_dir = resolve_path(cfg.data.tokenizer_path, root)
     moves_path = processed_dir / MOVES_NAME

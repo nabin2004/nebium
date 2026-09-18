@@ -1,3 +1,7 @@
+"""
+Deterministic experiment reproducibility utilities for Nebium.
+"""
+
 import os
 import random
 
@@ -7,7 +11,12 @@ import torch
 
 def seed_everything(seed: int) -> None:
     """
-    Seed all relevant random number generators for reproducible ML experiments.
+    Seeds all random number generators across Python, NumPy, PyTorch CPU, and CUDA.
+
+    Enforces cuDNN deterministic mode to guarantee reproducible experimental runs.
+
+    Args:
+        seed: Target integer seed.
     """
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)

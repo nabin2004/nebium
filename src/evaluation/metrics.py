@@ -1,3 +1,10 @@
+"""
+Evaluation metrics for next-token move prediction in Nebium.
+
+Provides cross-entropy loss, top-1 accuracy, top-5 accuracy, perplexity,
+and stratified move/special token metrics.
+"""
+
 import math
 
 import torch
@@ -9,6 +16,17 @@ def next_token_metrics(
     labels: torch.Tensor,
     special_token_ids: list[int] | None = None,
 ) -> dict[str, float]:
+    """
+    Computes token-level loss, top-1 accuracy, top-5 accuracy, and perplexity.
+
+    Args:
+        logits: Unnormalized predictions of shape (batch, seq_len, vocab_size).
+        labels: Target token IDs of shape (batch, seq_len) with -100 as ignore index.
+        special_token_ids: Optional list of special token IDs (<bos>, <eos>, <pad>) to separate.
+
+    Returns:
+        Dictionary containing aggregate and stratified evaluation metrics.
+    """
     vocab_size = logits.size(-1)
     flat_logits = logits.reshape(-1, vocab_size)
     flat_labels = labels.reshape(-1)
@@ -66,6 +84,15 @@ def next_token_metrics(
 
 
 def merge_metric_batches(batches: list[dict[str, float]]) -> dict[str, float]:
+    """
+    Aggregates token-weighted validation metrics across multiple evaluation batches.
+
+    Args:
+        batches: List of per-batch metric dictionaries containing 'n_tokens', 'loss', etc.
+
+    Returns:
+        Consolidated dictionary of mean validation metrics prefixed with 'val/'.
+    """
     n_tokens = sum(int(batch["n_tokens"]) for batch in batches)
     if n_tokens == 0:
         return {

@@ -1,3 +1,7 @@
+"""
+Weights & Biases experiment tracking logger for Nebium.
+"""
+
 from typing import Any
 
 import wandb
@@ -5,7 +9,12 @@ from omegaconf import DictConfig, OmegaConf
 
 
 class WandbLogger:
+    """
+    Weights & Biases logger integrating experiment metadata, metrics, tables, and model watching.
+    """
+
     def __init__(self, cfg: DictConfig) -> None:
+
         logging_cfg = cfg.logging
         self._run = wandb.init(
             project=logging_cfg.project,
