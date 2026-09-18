@@ -3,16 +3,16 @@
 
 \subsection{Training Configuration and Parameter Settings}
 \label{sec:exp_setup}
-Experiments were conducted in PyTorch 2.3 with native FP16 automatic mixed precision (\texttt{torch.cuda.amp}) on an NVIDIA RTX 4090 GPU (24 GB VRAM). Training hyperparameters were determined via empirical grid search informed by transformer scaling literature \parencite{loshchilov2019decoupled,touvron2023llama,hoffmann2022training}:
+Experiments were conducted in PyTorch 2.3 with native FP16 automatic mixed precision (\texttt{torch.cuda.amp}) on an NVIDIA RTX 4090 GPU (24 GB VRAM). Training hyperparameters were set through empirical grid search informed by transformer scaling literature \parencite{loshchilov2019decoupled,touvron2023llama,hoffmann2022training}:
 \begin{itemize}
-    \item \textbf{Decoupled Weight Decay Optimizer (AdamW)}: Configured with $\beta_1 = 0.90$, $\beta_2 = 0.95$, and $\epsilon = 10^{-8}$. Our grid search over $\beta_2 \in \{0.95, 0.98, 0.999\}$ revealed that $\beta_2 = 0.95$ adapts significantly faster to discrete chess token transitions by reducing momentum lag. A decoupled weight decay $\lambda = 0.1$ was applied strictly to 2D projection and feed-forward matrices; 1D parameters (RMSNorm gain vectors $\boldsymbol{\gamma}$) were masked from decay to preserve scaling capacity.
+    \item \textbf{Decoupled Weight Decay Optimizer (AdamW)}: Hyperparameters were set to $\beta_1 = 0.90$, $\beta_2 = 0.95$, and $\epsilon = 10^{-8}$. Grid search over $\beta_2 \in \{0.95, 0.98, 0.999\}$ showed that $\beta_2 = 0.95$ improved convergence speed on discrete move distributions by reducing gradient momentum lag. Decoupled weight decay ($\lambda = 0.1$) was applied to 2D weight matrices; 1D RMSNorm gain vectors ($\boldsymbol{\gamma}$) were excluded to maintain scale invariance.
     \item \textbf{Learning Rate Schedule}: A peak learning rate $\eta_{\text{max}} = 3.0 \times 10^{-4}$ was scheduled with 1,000 linear warmup steps to stabilize early query-key projections, followed by Cosine Annealing decaying to $\eta_{\text{min}} = 3.0 \times 10^{-5}$ across 20 epochs.
-    \item \textbf{Batch Throughput and Gradient Clipping}: We utilized effective batch size $B = 32$ over sequence window $T = 512$ (16,384 tokens/step), staying within GPU L2 cache residency. Global gradient norm clipping was enforced at $\|\mathbf{g}\|_2 \le 1.0$ to mitigate gradient spikes from rare tactical blunders.
+    \item \textbf{Batch Throughput and Gradient Clipping}: The model trained with an effective batch size $B = 32$ over sequence window $T = 512$ (16,384 tokens per optimizer step), fitting within GPU L2 cache residency. Global gradient norm clipping was enforced at $\|\mathbf{g}\|_2 \le 1.0$ to mitigate gradient spikes from tactical outliers.
 \end{itemize}
 
 \subsection{Training Dynamics and Convergence}
 \label{sec:exp_dynamics}
-The empirical optimization progression across 20 epochs is illustrated in Figure~\ref{fig:training_dynamics}. Dynamics exhibit three distinct learning phases: Phase~I (Epochs 1--4: Opening Theory Acquisition), where cross-entropy loss drops 54.5\% ($5.105 \to 2.32$, perplexity $141.8 \to 10.17$); Phase~II (Epochs 5--12: Tactical Pattern Formation), where convergence moderates as attention heads learn piece pins and coordinate relations; and Phase~III (Epochs 13--20: Endgame Fine-Tuning), reaching asymptotic stability at validation loss 1.884 and perplexity 6.55. Crucially, the parallel trajectory between training and validation loss confirms that weight decay ($\lambda = 0.1$) prevented empirical overfitting.
+Figure~\ref{fig:training_dynamics} tracks loss and perplexity across 20 epochs. Optimization resolves into three distinct regimes: initial opening book memorization during Epochs 1--4, where cross-entropy loss falls by 54.5\% ($5.105 \to 2.32$; perplexity $141.8 \to 10.17$); tactical structure acquisition during Epochs 5--12 as attention heads resolve piece coordinates and pins; and endgame stabilization during Epochs 13--20, terminating at a validation loss of 1.884 and perplexity of 6.55. Training and validation loss follow overlapping paths throughout training, indicating that decoupled weight decay ($\lambda = 0.1$) prevented overparameterized memorization.
 
 \begin{figure}[H]
   \centering
@@ -23,12 +23,7 @@ The empirical optimization progression across 20 epochs is illustrated in Figure
 
 \subsection{Comparative Baseline Performance}
 \label{sec:exp_baselines}
-To validate the architectural components, Nebium was benchmarked against two baselines trained on the identical corpus:
-\begin{enumerate}
-    \item \textbf{$3$-Gram Markov Model}: Statistical baseline computing transition frequencies over tri-gram moves.
-    \item \textbf{Vanilla GPT-2 Baseline}: 6-layer transformer with absolute positional embeddings, Post-LN, and GELU \parencite{deleo2022learning}.
-    \item \textbf{Nebium (Proposed)}: 6-layer causal transformer integrating RoPE, SwiGLU, RMSNorm, and BPE.
-\end{enumerate}
+To assess whether the architectural modifications yield measurable improvements, Nebium was evaluated alongside two baselines trained on the same data split: a tri-gram Markov model and a standard 6-layer GPT-2 baseline with learned positional embeddings and Post-LayerNorm \parencite{deleo2022learning}. Table~\ref{tab:baseline_comparison} summarizes test set metrics. Nebium reduced validation loss by 12.1\% relative to GPT-2 (1.88 vs. 2.14) and increased top-1 move accuracy from 44.8\% to 51.4\%, with top-5 accuracy reaching 82.3\%. The performance gap under identical parameter budgets indicates that combining RoPE with SwiGLU improves sequence modeling for board coordinates compared to standard absolute embeddings.
 
 \begin{table}[H]
 \centering
@@ -47,11 +42,9 @@ Stockfish 16 (Reference Depth 10) & -- & -- & -- & 68.2\% & 91.5\% \\
 \end{tabularx}
 \end{table}
 
-As documented in Table~\ref{tab:baseline_comparison}, Nebium achieves a 12.1\% relative reduction in validation loss over standard GPT-2, boosting top-1 accuracy by 6.6 percentage points and top-5 accuracy to 82.3\%. This confirms that RoPE's relative geometric inductive bias and SwiGLU representations substantially enhance chess sequence capacity under equivalent parameter budgets.
-
 \subsection{Move Legality Across Game Horizons}
 \label{sec:exp_legality}
-A pivotal evaluation of latent rule acquisition is the \textbf{Unconstrained Move Legality Rate}, evaluated without external move filters across three game horizons: Opening (plies 1--20), Middlegame (plies 21--60), and Endgame (plies 61+).
+We evaluate whether the transformer implicitly learns the legal grammar of chess by sampling moves directly from unmasked logits without rule filters. Legality was measured across three game horizons: Opening (plies 1--20), Middlegame (plies 21--60), and Endgame (plies 61+), as detailed in Table~\ref{tab:legality_phases}.
 
 \begin{table}[H]
 \centering
@@ -76,11 +69,11 @@ Endgame & 61+ & 63.5\% & 36.2\% & King step into check, promotion syntax \\
   \label{fig:chessboard_cases}
 \end{figure}
 
-The qualitative case studies in Figure~\ref{fig:chessboard_cases} explain the phase-dependent legality in Table~\ref{tab:legality_phases}. In the opening (Figure~\ref{fig:chessboard_cases}a), dense training representations allow attention heads to reproduce canonical variations (e.g., 3.~Bb5) with 96.8\% legality. In the middlegame (Figure~\ref{fig:chessboard_cases}b), the model coordinates tactical thrusts like 9.~d5 and pin exploitation (84.1\% legality). In deep endgames (Figure~\ref{fig:chessboard_cases}c), legality degrades to 63.5\%: with few pieces remaining, the context window contains lengthy move histories ($>60$ plies), causing spatial coordinate drift where the king steps into attacked squares. This exposes the fundamental limit of pure autoregressive sequence modeling, justifying dynamic legal masking (Section~\ref{sec:legal_masking}).
+Figure~\ref{fig:chessboard_cases} illustrates the board states underlying these error profiles. In the opening (Figure~\ref{fig:chessboard_cases}a), high corpus frequency enables the model to reproduce established book moves (such as 3.~Bb5 in the Ruy Lopez) with 96.8\% legality and 62.4\% top-1 match. Middlegame positions (Figure~\ref{fig:chessboard_cases}b) retain 84.1\% legality on tactical moves like central pawn advances (9.~d5), though complex diagonal pins over long token distances occasionally produce illegal attempts. In deep endgames (Figure~\ref{fig:chessboard_cases}c), legality drops to 63.5\%. Because piece density is low and move histories exceed 60 plies, spatial tracking drifts without an explicit 2D board representation, occasionally leading the king into check. This breakdown confirms that unconstrained sequence prediction requires external legal move masking for valid gameplay (Section~\ref{sec:legal_masking}).
 
 \subsection{Tactical Puzzle Solving and Playing Strength}
 \label{sec:exp_puzzles}
-To assess tactical acumen beyond sequence continuation, Nebium was evaluated against 1,500 positions from the Lichess Tactical Puzzle Suite, stratified across player rating tiers: Casual ($<1500$), Intermediate (1500--2000), and Advanced ($>2000$).
+To test tactical calculation beyond common move sequences, Nebium was evaluated on 1,500 test positions from the Lichess Tactical Puzzle Suite, stratified by difficulty tier: Casual ($<1500$), Intermediate (1500--2000), and Advanced ($>2000$).
 
 \begin{table}[H]
 \centering
@@ -99,15 +92,15 @@ Advanced & $> 2000$ & 500 & 28.6\% & 46.4\% \\
 \end{tabular*}
 \end{table}
 
-As documented in Table~\ref{tab:puzzle_results}, Nebium solves 68.4\% of casual puzzles under greedy decoding. Performance on advanced puzzles ($>2000$ Elo) reaches 28.6\%, highlighting the boundary of pure pattern-matching networks when navigating deep tactical calculation trees without search. In 100 tournament matches against Stockfish 16 constrained to Depth 10 ($\sim 2000$ Elo) with legal move masking, Nebium achieved an estimated Bayesian Elo rating of \textbf{1845 $\pm$ 32 Elo}, surpassing intermediate human club players.
+Table~\ref{tab:puzzle_results} reports solve rates under greedy decoding. The network solved 68.4\% of casual puzzles (direct captures and back-rank threats) and 49.2\% of intermediate puzzles. On advanced puzzles ($>2000$ Elo), solve accuracy dropped to 28.6\%, reflecting the limits of feed-forward attention when positions require deep combinatorial search. In an evaluation against Stockfish 16 set to Depth 10 across 100 matches with legal masking enabled, Nebium achieved an estimated Elo rating of 1845 $\pm$ 32, placing its tactical consistency above typical intermediate club level.
 
 \subsection{Centipawn Blunder Analysis via Stockfish}
 \label{sec:exp_blunder}
-The strategic quality of moves was evaluated by measuring the Centipawn Drop ($\Delta \text{CP}$) relative to the optimal engine move $m^*$:
+Move quality was evaluated by computing the centipawn loss ($\Delta \text{CP}$) relative to Stockfish 16's top evaluation $m^*$:
 \begin{equation}
     \Delta \text{CP} = \text{Eval}(m^*) - \text{Eval}(m_{\text{model}})
 \end{equation}
-A move was categorized as an Inaccuracy if $50 \le \Delta \text{CP} < 100$, a Mistake if $100 \le \Delta \text{CP} < 200$, and a Blunder if $\Delta \text{CP} \ge 200$ ($\ge 2.0$ pawns).
+Moves were categorized following standard engine analysis conventions: inaccuracies ($50 \le \Delta \text{CP} < 100$), mistakes ($100 \le \Delta \text{CP} < 200$), and blunders ($\Delta \text{CP} \ge 200$).
 
 \begin{figure}[H]
   \centering
@@ -116,11 +109,11 @@ A move was categorized as an Inaccuracy if $50 \le \Delta \text{CP} < 100$, a Mi
   \label{fig:blunder_distribution}
 \end{figure}
 
-As shown in Figure~\ref{fig:blunder_distribution}, $\Delta \text{CP}$ exhibits high positional stability during opening and middlegame play, with median errors below 25 CP (mean loss of 18.2 CP and 37.8 CP, respectively). The endgame exhibits a heavy right tail (mean loss 73.9 CP) because sparse positions frequently hinge upon a single critical square. Across the complete corpus, critical blunders occurred in only 6.2\% of moves, verifying robust tactical stability.
+Figure~\ref{fig:blunder_distribution} shows the resulting error distributions across game phases. Opening and middlegame play maintain low centipawn loss, with median values below 25 CP (mean drops of 18.2 CP and 37.8 CP). Endgame positions display a wider error distribution (mean 73.9 CP), where minor coordinate inaccuracies quickly forfeit tactical advantages. Across all evaluated plies, moves with $\Delta \text{CP} \ge 200$ accounted for 6.2\% of predictions, demonstrating consistent move quality under standard game conditions.
 
 \subsection{Inference Latency, Throughput, and Quantization}
 \label{sec:exp_latency}
-Real-time desktop integration requires sub-50 ms move generation. As critically appraised in Section~\ref{sec:tools_deployment}, modern edge deployment leverages GGUF 4-bit quantization (\texttt{Q4\_K\_M}) to eliminate Python interpreter overhead and allow seamless CPU execution. We benchmarked per-move latency across precision profiles on an NVIDIA RTX 4090 and consumer CPU.
+Interactive use in desktop or web applications requires per-move latency under 50 ms. Table~\ref{tab:inference_benchmarks} and Figure~\ref{fig:latency_comparison} report generation latency across precision profiles and decoding algorithms. Full-precision PyTorch FP32 required 14.2 ms for greedy generation and 21.6 ms with legal move filtering on an RTX 4090. Exporting the network to 4-bit GGUF format (\texttt{Q4\_K\_M}) using \texttt{llama.cpp} reduced per-move CPU inference to 4.1 ms for greedy selection and 9.8 ms with dynamic masking. Quantization reduced disk storage from 113.6 MB to 41.2 MB and active RAM allocation to 128 MB, allowing local deployment on standard consumer CPUs without dedicated graphics hardware.
 
 \begin{figure}[H]
   \centering
@@ -145,11 +138,9 @@ PyTorch FP16 & 56.8 MB & 264 MB & 8.6 & 14.8 \\
 \end{tabularx}
 \end{table}
 
-The benchmark results in Figure~\ref{fig:latency_comparison} and Table~\ref{tab:inference_benchmarks} confirm that 4-bit GGUF quantization achieves 4.1 ms greedy latency and 9.8 ms legal-masked latency, operating comfortably within the 16.6 ms (60 FPS) interactive animation budget. Quantization compresses the model footprint to 41.2 MB and memory to 128 MB, enabling frictionless CPU deployment without GPU acceleration.
-
 \subsection{Mechanistic Interpretability and Spatial Attention}
 \label{sec:exp_interpretability}
-To inspect whether Nebium's multi-head attention synthesizes board geometry, attention maps from layer $\ell = 3$ were projected onto rank-and-file coordinates.
+To evaluate whether attention layers track board geometry, attention weights from layer $\ell = 3$ were projected onto standard $8 \times 8$ board coordinates. Figure~\ref{fig:attention_map} shows the spatial distribution for Head 3. The attention weights focus on squares protecting the king at \texttt{e1}, specifically the pawn shield (\texttt{d2}, \texttt{e2}, \texttt{f2}) and castling destination (\texttt{g1}). This localized focus demonstrates that self-attention layers learn functional spatial groupings directly from one-dimensional move tokens.
 
 \begin{figure}[H]
   \centering
@@ -158,11 +149,9 @@ To inspect whether Nebium's multi-head attention synthesizes board geometry, att
   \label{fig:attention_map}
 \end{figure}
 
-As shown in Figure~\ref{fig:attention_map}, Head 3 demonstrates specialized spatial attention directed toward defending pawn chains and castling flanks, proving that causal self-attention constructs an internal semantic world model of chessboard geometry from 1D sequence tokens.
-
 \subsection{Memorization and Data Leakage Assessment}
 \label{sec:exp_memorization}
-To establish whether Nebium merely memorizes game trajectories, an empirical sequence overlap audit was executed using \texttt{scripts/analyze\_memorization.py}. We extracted all unique $n$-grams of length $n = 10$ plies across 41 randomly sampled full games (2,405 test sequences) and computed exact substring matches against the 177,150-game training corpus.
+To evaluate whether the model reproduces memorized game sequences rather than learning generalizable move patterns, an exact sequence overlap audit was conducted across 41 test games. We extracted all unique 10-ply move sequences (2,405 candidate trajectories, representing 5 consecutive full moves) and tested for exact substring matches in the 177,150-game training corpus. Table~\ref{tab:memorization_audit} presents the results. The audit found zero exact 10-ply matches in the training corpus (0.00\% overlap). While opening sequences overlap during the first 6 to 8 plies, moves diverge into unobserved game paths thereafter, demonstrating that the network generalizes rather than reciting memorized games.
 
 \begin{table}[H]
 \centering
@@ -181,5 +170,3 @@ Exact Data Leakage Percentage & \textbf{0.00\%} & \textbf{Zero empirical memoriz
 \bottomrule
 \end{tabularx}
 \end{table}
-
-Table~\ref{tab:memorization_audit} conclusively demonstrates \textbf{0.00\% exact leakage}. Beyond opening book theory, Nebium composes novel tactical continuations, confirming true inductive representation learning.
