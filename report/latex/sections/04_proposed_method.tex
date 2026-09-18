@@ -92,36 +92,35 @@ Nebium dynamically invokes PyTorch's native Scaled Dot-Product Attention (\textt
 
 \subsection{SwiGLU Feed-Forward Network}
 \label{sec:swiglu_method}
-Standard transformer architectures utilize a two-layer Multi-Layer Perceptron (MLP) with Gaussian Error Linear Units (GELU) \parencite{vaswani2017attention}. In contrast, Nebium adopts the Swish-Gated Linear Unit (SwiGLU) \parencite{shazeer2020glu}, which introduces bilinear multiplicative gating to regulate information flow. Formally, for an intermediate hidden representation $\mathbf{x} \in \mathbb{R}^{d_{\text{model}}}$:
+Standard transformers use a two-layer feed-forward network with Gaussian Error Linear Units (GELU) \parencite{vaswani2017attention}. Nebium instead replaces this block with the Swish-Gated Linear Unit (SwiGLU) \parencite{shazeer2020glu}, which applies multiplicative gating over intermediate representations. For an input vector $\mathbf{x} \in \mathbb{R}^{d_{\text{model}}}$:
 \begin{equation}
     \text{SwiGLU}(\mathbf{x}) = \left( \text{SiLU}\left(\mathbf{x} \mathbf{W}_{\text{gate}}\right) \odot \left(\mathbf{x} \mathbf{W}_{\text{up}}\right) \right) \mathbf{W}_{\text{down}}
 \end{equation}
-where $\text{SiLU}(z) = z \cdot \sigma(z) = \frac{z}{1 + e^{-z}}$, and $\odot$ denotes element-wise Hadamard multiplication. The projection matrices are parameterized as $\mathbf{W}_{\text{gate}}, \mathbf{W}_{\text{up}} \in \mathbb{R}^{d_{\text{model}} \times d_{ff}}$ and $\mathbf{W}_{\text{down}} \in \mathbb{R}^{d_{ff} \times d_{\text{model}}}$.
+where $\text{SiLU}(z) = z \cdot \sigma(z) = \frac{z}{1 + e^{-z}}$, $\odot$ denotes element-wise multiplication, and projection matrices are defined as $\mathbf{W}_{\text{gate}}, \mathbf{W}_{\text{up}} \in \mathbb{R}^{d_{\text{model}} \times d_{ff}}$ and $\mathbf{W}_{\text{down}} \in \mathbb{R}^{d_{ff} \times d_{\text{model}}}$.
 
-Because SwiGLU incorporates three projection matrices rather than two, maintaining parameter parity with a conventional FFN ($4 \cdot d_{\text{model}}$) requires scaling the hidden dimension to approximately $\frac{2}{3} \cdot 4 d_{\text{model}}$. In Nebium, $d_{ff}$ is computed as the nearest multiple of 8:
+Because SwiGLU introduces a third projection matrix, maintaining parameter parity with a standard $4 d_{\text{model}}$ expansion requires reducing the hidden dimension to $\frac{2}{3} \cdot 4 d_{\text{model}}$. To align with GPU tensor core memory tiles, $d_{ff}$ is rounded to the nearest multiple of 8:
 \begin{equation}
-    d_{ff} = 8 \times \left\lfloor \frac{\frac{2}{3} \times 4 \times d_{\text{model}} + 7}{8} \right\rfloor = 8 \times \left\lfloor \frac{1365.33 + 7}{8} \right\rfloor = 1,368
+    d_{ff} = 8 \times \left\lfloor \frac{\frac{2}{3} \times 4 \times d_{\text{model}} + 7}{8} \right\rfloor = 1,368
 \end{equation}
-This architectural adjustment ensures identical parameter count while delivering richer gradient pathways and accelerated empirical convergence.
+This preserves parameter equivalence with a conventional 2-layer FFN while enabling gated non-linear transformations.
 
 \subsection{Root Mean Square Layer Normalization (RMSNorm)}
 \label{sec:rmsnorm_method}
-Standard Layer Normalization enforces zero-mean and unit-variance across hidden feature dimensions:
+Standard Layer Normalization enforces zero-mean and unit-variance across feature dimensions:
 \begin{equation}
     \text{LayerNorm}(\mathbf{x}) = \frac{\mathbf{x} - \mu}{\sqrt{\sigma^2 + \epsilon}} \odot \boldsymbol{\gamma} + \boldsymbol{\beta}, \quad \mu = \frac{1}{d}\sum_{i=1}^d x_i, \quad \sigma^2 = \frac{1}{d}\sum_{i=1}^d (x_i - \mu)^2
 \end{equation}
-Empirical evidence indicates that the variance scaling property accounts for nearly all stability gains, while the mean-centering step is computationally redundant \parencite{zhang2019root}. Nebium integrates RMSNorm, which modifies the transformation by scaling purely by the root mean square:
+\textcite{zhang2019root} demonstrated that the stabilization benefit of LayerNorm derives primarily from scaling by the root mean square, rendering the mean-centering step computationally dispensable. Nebium adopts RMSNorm, normalizing inputs strictly by their root mean square:
 \begin{equation}
     \text{RMSNorm}(\mathbf{x}) = \frac{\mathbf{x}}{\text{RMS}(\mathbf{x})} \odot \boldsymbol{\gamma}, \quad \text{where } \text{RMS}(\mathbf{x}) = \sqrt{\frac{1}{d}\sum_{i=1}^d x_i^2 + \epsilon}
 \end{equation}
-By eliminating mean computation, RMSNorm achieves a 15--25\% speedup per layer and stabilizes pre-layer normalized training dynamics under half-precision FP16 operations.
+where $\boldsymbol{\gamma} \in \mathbb{R}^{d_{\text{model}}}$ is a learnable gain parameter and $\epsilon = 10^{-6}$ prevents division by zero. Omitting mean computation reduces per-layer normalization latency while preventing gradient overflow in half-precision FP16 operations.
 
 \subsection{Inference Engine and Dynamic Legal Move Masking}
 \label{sec:legal_masking}
-During inference, Nebium Model takes a prefix of tokens(chess moves) as input which represents previous moves $\mathbf{x}_{<t}$. Then model emits raw unnormalized logits $\mathbf{z}_t \in \mathbb{R}^V$ as output. This project uses the unconstrained generation  via greedy selection for measuring the latent learning but for competitive game play legal move masking has used.
+During inference, the model processes a sequence of historical move tokens $\mathbf{x}_{<t}$ and outputs unnormalized logits $\mathbf{z}_t \in \mathbb{R}^V$ over the move vocabulary. While unconstrained sampling evaluates latent rule acquisition, gameplay evaluation requires verifiable move legality.
 
-For bridging the sequence modeling and physical game rules, Nebium model implements a \textbf{Dynamic Legal Move Masking} inference protocol. The current board state $s_t$ is synchronized using \texttt{python-chess} \parencite{romstad2024pythonchess}. The set of physically legal moves in coordinate format $\mathcal{M}_{\text{legal}}(s_t)$ is mapped into corresponding token indices $\mathcal{I}_{\text{legal}} \subset \{1, \dots, V\}$. A binary filter mask $\mathbf{M}_{\text{legal}} \in \{0, 1\}^V$ is constructed, and non-legal logits are clamped to negative infinity:
-
+To enforce physical board rules, inference incorporates a dynamic legal move masking procedure. At ply $t$, the board state $s_t$ is synchronized using \texttt{python-chess} \parencite{romstad2024pythonchess}. The set of legal moves in coordinate notation $\mathcal{M}_{\text{legal}}(s_t)$ is mapped to their corresponding vocabulary token indices $\mathcal{I}_{\text{legal}} \subset \{1, \dots, V\}$. Non-legal logits are set to negative infinity:
 \begin{equation}
     \tilde{z}_{t, i} = 
     \begin{cases}
@@ -129,11 +128,10 @@ For bridging the sequence modeling and physical game rules, Nebium model impleme
         -\infty, & \text{otherwise}
     \end{cases}
 \end{equation}
-
-where $\tau > 0$ represents sampling temperature. The final probability distribution is obtained via softmax:
+where $\tau > 0$ controls sampling temperature. The final move probability is computed over the restricted support:
 \begin{equation}
     P(x_t = i \mid \mathbf{x}_{<t}) = \frac{\exp(\tilde{z}_{t, i})}{\sum_{j \in \mathcal{I}_{\text{legal}}} \exp(\tilde{z}_{t, j})}
 \end{equation}
-This hybrid architecture combines the strategic intuition and fast pattern recognition of deep transformers with the absolute correctness of rule verification.
+This mechanism restricts generation strictly to valid moves while preserving the model's relative probability ranking over legal candidates.
 
-To transition from training to low-latency edge serving, Nebium adopts a PyTorch-to-GGUF serialization pipeline rather than legacy ONNX Runtime or TensorFlow Serving frameworks. Whereas traditional ONNX exports decouple computation graphs from tokenizer vocabularies and suffer from Python interpreter bottlenecks during sequential decoding, GGUF encapsulates model weights, block-wise quantization scales (\texttt{Q4\_K\_M}), and BPE metadata into a unified binary, enabling zero-copy memory-mapped inference on commodity CPUs (detailed in Section~\ref{sec:tools_deployment}).
+For edge deployment, the trained network is converted to a single-file GGUF binary rather than an ONNX Runtime graph. As outlined in Section~\ref{sec:tools_deployment}, ONNX exports separate computation graphs from tokenization code and incur Python runtime overhead on sequential token queries. GGUF embeds weights, 4-bit block quantization scales (\texttt{Q4\_K\_M}), and vocabulary metadata in a single file, supporting memory-mapped C++ execution on consumer CPUs without external runtime dependencies.
