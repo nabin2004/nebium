@@ -58,12 +58,24 @@ def main(cfg: DictConfig):
         if not sequences:
             raise RuntimeError("No games loaded. Check data.raw_path, format, min_moves, and max_games.")
         tokenizer = get_tokenizer(cfg, sequences, root=root, corpus_rebuilt=rebuilt)
+        
+        # Ensure tokenizer and architecture config are immediately available in export/
+        export_early_dir = Path("export")
+        export_early_dir.mkdir(parents=True, exist_ok=True)
+        tokenizer.save(str(export_early_dir / "tokenizer.json"))
+
         dataset_repo = maybe_push_hf_dataset(cfg, sequences, root=root, corpus_rebuilt=rebuilt)
         if dataset_repo:
             print(f"Pushed processed dataset to https://huggingface.co/datasets/{dataset_repo}")
         OmegaConf.set_struct(cfg, False)
         cfg.model.vocab_size = tokenizer.vocab_size
         model = instantiate(cfg.model)
+
+        import json
+        config_early = OmegaConf.to_container(cfg.model, resolve=True)
+        (export_early_dir / "model_config.json").write_text(
+            json.dumps(config_early, indent=2) + "\n", encoding="utf-8"
+        )
         train_loader, val_loader = build_dataloaders(
             sequences,
             tokenizer,

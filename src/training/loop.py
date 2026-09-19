@@ -184,9 +184,16 @@ def run_training(
             model.gradient_checkpointing_enable()
             print("[Training] Enabled gradient (activation) checkpointing.")
 
-    if torch.cuda.device_count() > 1:
-        print(f"Using {torch.cuda.device_count()} GPUs!")
+    device_count = torch.cuda.device_count()
+    batch_size = int(cfg.training.get("batch_size", 1))
+    disable_dp = bool(cfg.training.get("disable_data_parallel", False))
+
+    if device_count > 1 and batch_size >= device_count and not disable_dp:
+        print(f"[Training] Using {device_count} GPUs with DataParallel (batch_size={batch_size})")
         model = torch.nn.DataParallel(model)
+    elif device_count > 1:
+        skip_reason = "disable_data_parallel=True" if disable_dp else f"batch_size ({batch_size}) < GPU count ({device_count})"
+        print(f"[Training] Skipping DataParallel ({skip_reason}). Running single-device training on {device} to eliminate multi-GPU reduction overhead.")
 
     if torch.cuda.is_available():
         torch.cuda.empty_cache()

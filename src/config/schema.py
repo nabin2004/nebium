@@ -77,6 +77,7 @@ class TrainingConfig:
     export_gguf: bool = True
     gguf_precision: str = "fp16"
     gradient_checkpointing: bool = False
+    disable_data_parallel: bool = False
 
 
 @dataclass

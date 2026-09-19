@@ -11,6 +11,7 @@ epochs: 20
 gradient_accumulation_steps: 128      # effective batch = 128 seqs
 mixed_precision: fp16
 gradient_checkpointing: true
+disable_data_parallel: true
 gradient_clipping: 1.0
 early_stopping_patience: 5
 eval_samples: true

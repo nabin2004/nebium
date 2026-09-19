@@ -343,6 +343,7 @@ Demonstrates autoregressive move prediction from arbitrary board openings, check
     code("""import chess
 import json
 import torch
+from pathlib import Path
 from src.models.transformer.nebium import Nebium
 from src.data.tokenizer import ChessTokenizer
 
@@ -368,8 +369,16 @@ if Path(config_path).exists():
     with open(config_path, "r") as f:
         config = json.load(f)
     model = Nebium(**config)
-    ckpt_path = "best_model.pt" if Path("best_model.pt").exists() else "checkpoint.pt"
-    if Path(ckpt_path).exists():
+    ckpt_candidates = [
+        "checkpoint_large.pt",
+        "checkpoint_medium.pt",
+        "checkpoint_small.pt",
+        "best_model.pt",
+        "checkpoint.pt",
+    ]
+    ckpt_path = next((p for p in ckpt_candidates if Path(p).exists()), None)
+    if ckpt_path:
+        print(f"Loading checkpoint from {ckpt_path}")
         state = torch.load(ckpt_path, map_location="cpu")
         model.load_state_dict(state.get("model", state))
         model.eval()
@@ -384,12 +393,15 @@ if Path(config_path).exists():
         print(board)
         print("\\nGenerating next moves...")
         
-        input_ids = torch.tensor([[tokenizer.bos_id] + tokenizer.encode(prompt)])
-        mask = torch.ones_like(input_ids)
-        with torch.no_grad():
-            tokens = model.generate(input_ids, mask, max_new_tokens=10, temperature=0.7)
-        continuation = tokenizer.decode(tokens[0].tolist())
-        print(f"Model continuation: {continuation}")
+        if tokenizer_path:
+            input_ids = torch.tensor([[tokenizer.bos_id] + tokenizer.encode(prompt)])
+            mask = torch.ones_like(input_ids)
+            with torch.no_grad():
+                tokens = model.generate(input_ids, mask, max_new_tokens=10, temperature=0.7)
+            continuation = tokenizer.decode(tokens[0].tolist())
+            print(f"Model continuation: {continuation}")
+        else:
+            print("Tokenizer not loaded; skipping generation demo.")
     else:
         print("No checkpoint found to demo.")
 else:
