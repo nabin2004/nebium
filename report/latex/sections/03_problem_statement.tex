@@ -6,7 +6,7 @@
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.82\linewidth]{figures/next_move_modelling.pdf}
-  \caption[Autoregressive Next-Move Modeling]{Autoregressive sequence modeling framework for next-move prediction.}
+  \caption[Autoregressive Next-Move Modeling]{Autoregressive move prediction in chess. Given a sequence of prior plies, the causal decoder models the conditional probability of the next coordinate token without looking ahead.}
   \label{fig:ml_problem}
 \end{figure}
 
@@ -22,7 +22,7 @@ Parameters $\theta$ are optimized by minimizing expected cross-entropy loss over
 \begin{equation}
     \mathcal{L}_{\text{CE}}(\theta) = - \mathbb{E}_{\mathbf{x} \sim \mathcal{D}} \left[ \frac{1}{T} \sum_{t=1}^T \log P_\theta(x_t \mid x_{<t}) \right]
 \end{equation}
-Figure~\ref{fig:ml_problem} illustrates this autoregressive framework, where the model attends strictly to historical move tokens ($x_{<t}$) to predict subsequent moves.
+As shown in Figure~\ref{fig:ml_problem}, the model predicts each move by conditioning strictly on earlier plies ($x_{<t}$), learning board transitions purely from game history.
 
 This formulation introduces three core representation challenges:
 \begin{enumerate}
@@ -33,12 +33,12 @@ This formulation introduces three core representation challenges:
 
 \subsection{Dataset Characterization and Acquisition}
 \label{sec:dataset_char}
-To train Nebium without overfitting to degenerate play, this project employs the \textbf{Lichess Open Database} \parencite{stockl-2021-watching}, which archives monthly competitive games in Portable Game Notation (PGN) format. We isolated an archival subset from January--February 2013 encompassing 245,293 tournament matches (Figure~\ref{fig:pgn_format}).
+To train Nebium without overfitting to degenerate play, this project employs the \textbf{Lichess Open Database} \parencite{stockl-2021-watching}, which archives monthly competitive games in Portable Game Notation (PGN) format. We isolated an archival subset from early 2013 containing 245,293 tournament matches (Figure~\ref{fig:pgn_format}).
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.78\linewidth]{figures/pgn_raw2.pdf}
-  \caption[Representative Raw PGN Record]{Representative raw PGN record containing game metadata headers, standard algebraic notation (SAN), evaluation comments, and final match result.}
+  \caption[Representative PGN Game Record]{A sample tournament game in standard PGN format, showing metadata headers, move history in algebraic notation, and the final match outcome.}
   \label{fig:pgn_format}
 \end{figure}
 
@@ -62,7 +62,7 @@ Standard Algebraic Notation (SAN)---such as \texttt{Nxf7+}---is human-readable b
 For example, moving a pawn from e2 to e4 is uniquely encoded as \texttt{e2e4}, kingside castling as \texttt{e1g1}, and queen promotion as \texttt{e7e8q}.
 
 \subsubsection{Byte-Pair Encoding (BPE) Tokenization}
-Tokenization critically governs transformer efficiency. Character-level tokenization expands sequence lengths by $4\times$, diluting attention across plies \parencite{stockl-2021-watching}. Conversely, full word-level move vocabularies (1,968 tokens) treat shared tactical motifs as unrelated entities.This project implements a custom BPE tokenizer via HuggingFace \texttt{tokenizers} (\texttt{ChessTokenizerHF}, Figure~\ref{fig:tokenizer}). Starting from ASCII characters, BPE iteratively merges co-occurring pairs up to $V = 5,000$ tokens, reserving control tokens:
+Tokenization critically governs transformer efficiency. Character-level tokenization expands sequence lengths by $4\times$, diluting attention across plies \parencite{stockl-2021-watching}. Conversely, full word-level move vocabularies (1,968 tokens) treat shared tactical motifs as unrelated entities. To balance sequence length and vocabulary size, we trained a custom BPE tokenizer (\texttt{ChessTokenizerHF}, Figure~\ref{fig:tokenizer}). Starting from ASCII characters, it merges frequent coordinate pairs into a compact 5,000-token vocabulary, reserving control tokens:
 \begin{equation}
     \mathcal{V}_{\text{special}} = \left\{ [\texttt{PAD}], [\texttt{UNK}], [\texttt{BOS}], [\texttt{EOS}], [\texttt{SEP}] \right\}
 \end{equation}
@@ -71,6 +71,6 @@ Preserving whitespace boundaries enables the tokenizer to encode frequent openin
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.88\linewidth]{figures/tokenizerChessBPE.pdf}
-  \caption[BPE Tokenization Workflow]{Custom Byte-Pair Encoding (BPE) tokenization workflow implemented in \texttt{ChessTokenizerHF}.}
+  \caption[BPE Tokenization Pipeline]{Byte-Pair Encoding pipeline for chess moves. Starting from individual coordinate characters, frequent move pairs merge into a compact 5,000-token vocabulary that captures common opening phrases as single tokens.}
   \label{fig:tokenizer}
 \end{figure}

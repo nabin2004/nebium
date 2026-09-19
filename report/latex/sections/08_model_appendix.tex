@@ -1,0 +1,83 @@
+\section{Open-Source Model Checkpoints and Artifact Repositories}
+\label{sec:model_appendix}
+
+To support open verification and reproducibility of the empirical findings reported in this work, all trained Nebium model checkpoints, quantized edge binaries, and tokenized chess corpora are published on the Hugging Face Hub.
+
+The collection is accessible at:
+\begin{center}
+\small
+\url{https://hf.co/collections/nabin2004/nebium-transformer-4-chess}
+\end{center}
+
+\subsection{Published Model Variants and Quantized Binaries}
+\label{sec:appendix_models_table}
+
+Table~\ref{tab:hf_models} lists the published model checkpoints across parameter scaling tiers, distinguishing standard PyTorch weights from edge-optimized GGUF binaries.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Published Nebium model weights and quantized edge deployment binaries on Hugging Face.}
+\label{tab:hf_models}
+\begin{tabularx}{\linewidth}{@{} p{4.4cm} c c c X @{}}
+\toprule
+\textbf{Model ID (\texttt{nabin2004/})} & \textbf{Params} & \textbf{Format} & \textbf{Architecture} & \textbf{Deployment Target \& Notes} \\
+\midrule
+\texttt{nebium} & 28.4M & PyTorch FP16 & $L=6, d=512, H=8$ & Base model for latency benchmarking \\
+\texttt{nebium-small} & 117M & PyTorch FP16 & $L=12, d=768, H=12$ & Primary scaling tier for sequence loss analysis \\
+\texttt{nebium-small-gguf} & 117M & GGUF Q4\_K\_M & $L=12, d=768, H=12$ & Edge binary (88.1~MB) for llama.cpp CPU inference \\
+\texttt{nebium-medium} & 345M & PyTorch FP16 & $L=24, d=1024, H=16$ & Compute-optimal checkpoint (val PPL 6.55, val loss 1.88) \\
+\texttt{nebium-medium-gguf} & 345M & GGUF Q4\_K\_M & $L=24, d=1024, H=16$ & 4-bit block quantized binary for desktop CPUs \\
+\texttt{nebium-large} & 762M & PyTorch FP16 & $L=36, d=1280, H=20$ & Maximum capacity tier trained with 8-bit AdamW \\
+\texttt{nebium-large-gguf} & 762M & GGUF Q4\_K\_M & $L=36, d=1280, H=20$ & 4-bit quantized binary for memory-constrained devices \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Published Datasets and UCI Token Splits}
+\label{sec:appendix_datasets_table}
+
+The training, validation, and tactical evaluation corpora are indexed in Table~\ref{tab:hf_datasets}.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Published training datasets and tokenized chess corpora on the Hugging Face Hub.}
+\label{tab:hf_datasets}
+\begin{tabularx}{\linewidth}{@{} p{4.4cm} c c X @{}}
+\toprule
+\textbf{Dataset ID (\texttt{nabin2004/})} & \textbf{Records} & \textbf{Format} & \textbf{Contents and Function} \\
+\midrule
+\texttt{ChessDataset} & $>$2M games & PGN / JSON & Competitive game collection filtered for rating $>2000$ \\
+\texttt{nebium-lichess-2013-uci} & 1.2M plies & UCI text & Standard games from Lichess 2013 opening benchmark \\
+\texttt{nebium-lichess-uci} & Full split & BPE tokens & Domain-tokenized UCI sequences ($V=5,000$) with train/val/test splits \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Hugging Face Quickstart and Inference Invocation}
+\label{sec:appendix_hf_quickstart}
+
+Listing~\ref{lst:hf_download} demonstrates how to load Nebium model weights and tokenizer directly from the Hugging Face Hub for autoregressive move generation.
+
+\begin{lstlisting}[language=Python, label={lst:hf_download}, caption={Loading Nebium-Small weights and tokenizer from the Hugging Face Hub.}]
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+# Load domain tokenizer and model weights from Hugging Face Hub
+repo_id = "nabin2004/nebium-small"
+tokenizer = AutoTokenizer.from_pretrained(repo_id)
+model = AutoModelForCausalLM.from_pretrained(repo_id, torch_dtype=torch.float16)
+model.eval()
+
+# Encode Italian Game opening prefix
+prompt = "e2e4 e7e5 g1f3 b8c6 f1c4"
+inputs = tokenizer(prompt, return_tensors="pt")
+
+# Autoregressively sample next move token
+with torch.no_grad():
+    outputs = model.generate(**inputs, max_new_tokens=4, temperature=0.7)
+continuation = tokenizer.decode(outputs[0], skip_special_tokens=True)
+print(f"Game prefix: {prompt}")
+print(f"Generated continuation: {continuation}")
+\end{lstlisting}

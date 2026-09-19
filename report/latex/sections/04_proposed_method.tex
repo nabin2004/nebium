@@ -1,7 +1,7 @@
 \section{Proposed Methodology}
 \label{sec:proposed_method}
 
-Nebium is architected as a modernized, decoder-only causal transformer \parencite{vaswani2017attention} optimized specifically for the structural and temporal dynamics of chess sequence modeling. Rather than adopting an unmodified vanilla GPT configuration with standard learned absolute position embeddings and Post-LayerNorm \parencite{deleo2022learning}, Nebium incorporates exisiting three state-of-the-art architectural methods such as \textbf{Rotary Position Embeddings (RoPE)} \parencite{su2024roformer}, \textbf{Swish-Gated Linear Units (SwiGLU)} \parencite{shazeer2020glu}, and \textbf{Root Mean Square Normalization (RMSNorm)} \parencite{zhang2019root}. The holistic pipeline is presented in following Figure~\ref{fig:architecture}.
+Nebium is architected as a modernized, decoder-only causal transformer \parencite{vaswani2017attention} optimized specifically for the structural and temporal dynamics of chess sequence modeling. Rather than adopting an unmodified vanilla GPT configuration with standard learned absolute position embeddings and Post-LayerNorm \parencite{deleo2022learning}, Nebium incorporates three architectural mechanisms: \textbf{Rotary Position Embeddings (RoPE)} \parencite{su2024roformer}, \textbf{Swish-Gated Linear Units (SwiGLU)} \parencite{shazeer2020glu}, and \textbf{Root Mean Square Normalization (RMSNorm)} \parencite{zhang2019root}. The system pipeline and block architecture are presented in Figure~\ref{fig:architecture}.
 
 \subsection{End-to-End Architectural Pipeline}
 \label{sec:arch_pipeline}
@@ -47,8 +47,19 @@ Total Parameters & 28.4 Million & Compact footprint enabling sub-10~ms CPU gener
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.78\linewidth]{figures/nebium.pdf}
-  \caption[Nebium Causal Transformer Architecture]{Architectural overview of the Nebium causal transformer. Tokenized UCI move prefixes pass through token embedding, rotary position encoding, stacked pre-normalized causal transformer blocks, and a linear language modeling head.}
+  \begin{subfigure}[b]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{figures/nebium.pdf}
+    \caption{End-to-End System Pipeline}
+    \label{fig:pipeline_overview}
+  \end{subfigure}\hfill
+  \begin{subfigure}[b]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{figures/nebium_architecture_block.pdf}
+    \caption{Decoder Block Schematic}
+    \label{fig:block_schematic}
+  \end{subfigure}
+  \caption[Nebium System Pipeline and Transformer Decoder Architecture]{Nebium system architecture: (a) pipeline from raw PGN data to masked move generation; (b) causal decoder block combining RMSNorm, rotary self-attention, and SwiGLU feed-forward layers.}
   \label{fig:architecture}
 \end{figure}
 
@@ -68,7 +79,14 @@ The inner product between the rotated query and key vectors naturally isolates t
 \begin{equation}
     \langle \mathbf{R}_{\Theta, m} \mathbf{q}_m, \, \mathbf{R}_{\Theta, n} \mathbf{k}_n \rangle = \mathbf{q}_m^T \mathbf{R}_{\Theta, n - m} \mathbf{k}_n = g(\mathbf{q}_m, \mathbf{k}_n, m - n)
 \end{equation}
-Consequently, self-attention scores between pieces naturally reflect relative move latencies and turn-taking tempos, allowing the model to extrapolate across extended endgames.
+Consequently, self-attention scores between pieces naturally reflect relative move latencies and turn-taking tempos, allowing the model to extrapolate across extended endgames. Figure~\ref{fig:rope_diagram} traces this rotation path, where coordinate halves are paired, scaled by trigonometric frequencies, and recombined without adding absolute position tables.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.62\linewidth]{figures/rope_architecture.pdf}
+  \caption[Rotary Position Embedding Dataflow]{Rotary Position Embedding (RoPE) mechanism. Splitting query and key vectors into 2D chunks and rotating them by position-dependent angles encodes relative move distance directly into attention scores.}
+  \label{fig:rope_diagram}
+\end{figure}
 
 \subsection{Multi-Head Causal Self-Attention}
 \label{sec:mhsa_method}
@@ -88,7 +106,14 @@ The attention weights and aggregated output are calculated via:
 \begin{equation}
     \text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left( \frac{\mathbf{Q} \mathbf{K}^T}{\sqrt{d_k}} + \mathbf{M} \right) \mathbf{V}
 \end{equation}
-Nebium dynamically invokes PyTorch's native Scaled Dot-Product Attention (\texttt{scaled\_}\allowbreak\texttt{dot\_}\allowbreak\texttt{product\_}\allowbreak\texttt{attention}), unlocking hardware-accelerated FlashAttention kernels that eliminate memory bandwidth bottlenecks during backpropagation.
+Nebium dynamically invokes PyTorch's native Scaled Dot-Product Attention (\texttt{scaled\_}\allowbreak\texttt{dot\_}\allowbreak\texttt{product\_}\allowbreak\texttt{attention}), unlocking hardware-accelerated FlashAttention kernels that eliminate memory bandwidth bottlenecks during backpropagation. Figure~\ref{fig:mhsa_diagram} diagrams the full attention block, following representations from initial linear projections through head splitting, rotary transformation, causal masking, and final projection.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.62\linewidth]{figures/mhsa_architecture.pdf}
+  \caption[Causal Self-Attention Execution Flow]{Multi-head causal self-attention in Nebium. Projected vectors pass through rotary embedding and causal masking before scaled dot-product attention pools context across heads.}
+  \label{fig:mhsa_diagram}
+\end{figure}
 
 \subsection{SwiGLU Feed-Forward Network}
 \label{sec:swiglu_method}
@@ -102,7 +127,14 @@ Because SwiGLU introduces a third projection matrix, maintaining parameter parit
 \begin{equation}
     d_{ff} = 8 \times \left\lfloor \frac{\frac{2}{3} \times 4 \times d_{\text{model}} + 7}{8} \right\rfloor = 1,368
 \end{equation}
-This preserves parameter equivalence with a conventional 2-layer FFN while enabling gated non-linear transformations.
+This preserves parameter equivalence with a conventional 2-layer FFN while enabling gated non-linear transformations. Figure~\ref{fig:swiglu_comparison} compares the two blocks side by side, highlighting how SwiGLU gates activations with an element-wise product before the final projection.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\linewidth]{figures/swiglu_gelu_comparison.pdf}
+  \caption[Feed-Forward Comparison: SwiGLU versus GELU]{Feed-forward design comparison. Left: Nebium's SwiGLU block uses multiplicative SiLU gating across three projections. Right: the standard two-layer GELU baseline with static intermediate activations.}
+  \label{fig:swiglu_comparison}
+\end{figure}
 
 \subsection{Root Mean Square Layer Normalization (RMSNorm)}
 \label{sec:rmsnorm_method}

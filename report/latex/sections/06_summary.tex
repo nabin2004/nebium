@@ -36,7 +36,7 @@
 %%%      (e.g., performance drop on $>2000$ Elo puzzles).
 %%% =========================================================================
 
-\textit{[Author placeholder: Summarize key empirical results, architectural takeaways, and observed limitations according to the docstring guidance above.]}
+Nebium shows causal transformers can learn chess grammar from coordinate sequences alone. However, unconstrained decoding drifts in long endgames without lookahead search.
 
 
 % ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@
 %%%      to bridge the gap in late-game coordinate precision.
 %%% =========================================================================
 
-\textit{[Author placeholder: Detail future trajectories for RLVR post-training using deterministic chess verifiers according to the docstring guidance above.]}
+Future post-training will use deterministic rule verifiers and reinforcement learning to penalize tactical blunders directly, enforcing late-game move legality.
 
 
 % ---------------------------------------------------------------------------
@@ -93,4 +93,4 @@
 %%%    - Evaluating compute vs. perplexity trade-offs under identical active parameter budgets.
 %%% =========================================================================
 
-\textit{[Author placeholder: Discuss the proposed MoE architecture test bed, sparse routing dynamics, and expert specialization hypotheses according to the docstring guidance above.]}
+Replacing dense feed-forward layers with sparse mixture-of-experts will test whether individual experts specialize naturally by opening, middlegame, or endgame phase under fixed compute.

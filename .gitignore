@@ -46,3 +46,6 @@ report/proposal/
 *.run.xml
 *.toc
 *.synctex.gz
+
+# Scratch directory
+scratch/
