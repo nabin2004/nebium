@@ -77,12 +77,53 @@ def load_checkpoint(
 
 
 def build_optimizer(model: torch.nn.Module, cfg: DictConfig) -> torch.optim.Optimizer:
-    name = cfg.training.optimizer
+    name = str(cfg.training.optimizer).lower()
+    lr = float(cfg.training.learning_rate)
+    weight_decay = float(cfg.training.get("weight_decay", 0.1))
+
+    if name in ("adamw_8bit", "bnb_8bit", "adamw8bit"):
+        try:
+            import bitsandbytes as bnb
+            print("[Optimizer] Using bitsandbytes 8-bit AdamW (AdamW8bit)")
+            return bnb.optim.AdamW8bit(
+                model.parameters(),
+                lr=lr,
+                weight_decay=weight_decay,
+            )
+        except ImportError:
+            print("[Optimizer] Note: bitsandbytes not installed; falling back to memory-optimized AdamW")
+            name = "adamw"
+
     if name == "adamw":
+        # On CUDA, prioritize fused=True or foreach=False to prevent large temporary memory
+        # allocations from PyTorch's default _multi_tensor_adam (_foreach_sqrt)
+        is_cuda = False
+        try:
+            is_cuda = next(model.parameters()).is_cuda
+        except (StopIteration, Exception):
+            pass
+
+        if is_cuda:
+            try:
+                # fused=True executes an in-place C++/CUDA kernel without allocating intermediate tensor copies
+                return torch.optim.AdamW(
+                    model.parameters(),
+                    lr=lr,
+                    weight_decay=weight_decay,
+                    fused=True,
+                )
+            except Exception as exc:
+                print(f"[Optimizer] Note: fused=True not supported ({exc}); falling back to foreach=False")
+                return torch.optim.AdamW(
+                    model.parameters(),
+                    lr=lr,
+                    weight_decay=weight_decay,
+                    foreach=False,
+                )
         return torch.optim.AdamW(
             model.parameters(),
-            lr=cfg.training.learning_rate,
-            weight_decay=cfg.training.weight_decay,
+            lr=lr,
+            weight_decay=weight_decay,
         )
     raise ValueError(f"Unsupported optimizer: {name}")
 
@@ -136,9 +177,20 @@ def run_training(
 ) -> dict[str, float]:
     device = _device()
     model = model.to(device)
+
+    # Enable activation (gradient) checkpointing to reduce VRAM
+    if bool(cfg.training.get("gradient_checkpointing", False)):
+        if hasattr(model, "gradient_checkpointing_enable"):
+            model.gradient_checkpointing_enable()
+            print("[Training] Enabled gradient (activation) checkpointing.")
+
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs!")
         model = torch.nn.DataParallel(model)
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     use_amp = cfg.training.mixed_precision == "fp16" and device.type == "cuda"
     optimizer = build_optimizer(model, cfg)
     steps_per_epoch = max(1, math.ceil(len(train_loader) / int(cfg.training.gradient_accumulation_steps)))
@@ -210,6 +262,8 @@ def run_training(
                 if scheduler is not None:
                     scheduler.step()
                 global_step += 1
+                if torch.cuda.is_available() and accum >= 32 and global_step % 5 == 0:
+                    torch.cuda.empty_cache()
                 lr = optimizer.param_groups[0]["lr"]
                 logger.log_metrics({"train/loss": running / max(1, step), "lr": lr}, step=global_step)
                 progress.set_postfix(loss=running / max(1, step), lr=lr)

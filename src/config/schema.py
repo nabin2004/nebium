@@ -29,6 +29,7 @@ class ModelConfig:
     max_seq_len: int = 128
     bias: bool = False
     tie_word_embeddings: bool = False
+    gradient_checkpointing: bool = False
 
 
 
@@ -75,6 +76,7 @@ class TrainingConfig:
     sample_temperature: float = 0.7
     export_gguf: bool = True
     gguf_precision: str = "fp16"
+    gradient_checkpointing: bool = False
 
 
 @dataclass

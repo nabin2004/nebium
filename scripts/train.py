@@ -1,5 +1,10 @@
 import os
 import sys
+
+# Prevent PyTorch CUDA memory segment fragmentation
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
+
 import time
 from pathlib import Path
 

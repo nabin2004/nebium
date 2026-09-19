@@ -62,6 +62,11 @@ This notebook provides an automated, end-to-end workflow to train, evaluate, con
     md("## 1. Environment & Dual-GPU Verification")
     code("""import os
 import sys
+
+# Configure PyTorch CUDA memory allocator to prevent segment fragmentation
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
+
 import torch
 from pathlib import Path
 
@@ -120,7 +125,7 @@ else:
 # Install dependencies
 print("\\nInstalling project requirements...")
 !pip install -e . --no-deps -q
-!pip install chess zstandard hydra-core omegaconf gguf wandb matplotlib seaborn tqdm -q
+!pip install chess zstandard hydra-core omegaconf gguf wandb matplotlib seaborn tqdm bitsandbytes -q
 
 print("\\nInstallation complete!")
 """)
@@ -343,8 +348,19 @@ from src.data.tokenizer import ChessTokenizer
 
 # Load tokenizer
 tokenizer = ChessTokenizer()
-tokenizer_path = "export/tokenizer.json" if Path("export/tokenizer.json").exists() else "data/tokenizer/lichess_2013/tokenizer.json"
-tokenizer.load(tokenizer_path)
+tokenizer_candidates = [
+    "export/tokenizer.json",
+    "/kaggle/working/data/tokenizer/lichess/tokenizer.json",
+    "data/tokenizer/lichess/tokenizer.json",
+    "data/tokenizer/lichess_2013/tokenizer.json",
+    "data/tokenizer/fixture/tokenizer.json",
+]
+tokenizer_path = next((p for p in tokenizer_candidates if Path(p).exists()), None)
+if tokenizer_path:
+    tokenizer.load(tokenizer_path)
+    print(f"Loaded tokenizer from {tokenizer_path}")
+else:
+    print("Warning: No tokenizer.json found yet.")
 
 # Load config and model
 config_path = "export/model_config.json"

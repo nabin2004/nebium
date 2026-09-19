@@ -9,3 +9,4 @@ attention_type: standard
 activation: swiglu
 norm: rmsnorm
 max_seq_len: 1024
+gradient_checkpointing: true

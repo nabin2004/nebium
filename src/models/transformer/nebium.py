@@ -46,12 +46,14 @@ class Nebium(nn.Module):
         norm: str = "rmsnorm",
         bias: bool = False,
         tie_word_embeddings: bool = False,
+        gradient_checkpointing: bool = False,
         **kwargs,
     ) -> None:
         super().__init__()
         if positional_encoding not in {"rope", "learned"}:
             raise ValueError(f"Unknown positional_encoding: {positional_encoding}")
         self.max_seq_len = max_seq_len
+        self.gradient_checkpointing = gradient_checkpointing
         self.token_embed = TokenEmbedding(vocab_size, d_model)
         self.learned_pos = (
             LearnedPositionalEmbedding(max_seq_len, d_model) if positional_encoding == "learned" else None
@@ -79,6 +81,14 @@ class Nebium(nn.Module):
             self.lm_head.weight = self.token_embed.embedding.weight
         self.apply(self._init_weights)
 
+    def gradient_checkpointing_enable(self) -> None:
+        """Enables activation checkpointing across transformer layers to reduce training VRAM."""
+        self.gradient_checkpointing = True
+
+    def gradient_checkpointing_disable(self) -> None:
+        """Disables activation checkpointing."""
+        self.gradient_checkpointing = False
+
     @staticmethod
     def _init_weights(module: nn.Module) -> None:
         """Applies truncated normal initialization matching standard transformer scaling."""
@@ -105,7 +115,12 @@ class Nebium(nn.Module):
             hidden = self.learned_pos(hidden)
         hidden = self.embed_dropout(hidden)
         for block in self.blocks:
-            hidden = block(hidden, attention_mask)
+            if self.gradient_checkpointing and self.training:
+                hidden = torch.utils.checkpoint.checkpoint(
+                    block, hidden, attention_mask, use_reentrant=False
+                )
+            else:
+                hidden = block(hidden, attention_mask)
         return self.lm_head(self.final_norm(hidden))
 
     @torch.no_grad()

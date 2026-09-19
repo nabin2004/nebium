@@ -28,3 +28,21 @@ data/tokenizer/
 
 # Separate proposal repository
 report/proposal/
+
+# IDE
+.vscode/
+
+# LaTeX auxiliary files
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.toc
+*.synctex.gz

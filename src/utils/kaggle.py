@@ -32,6 +32,10 @@ def setup_kaggle_env(working_dir: str | Path = "/kaggle/working") -> dict[str, b
     print(" [Kaggle Setup] Detected Kaggle execution environment.")
     print("=" * 60)
 
+    # Configure PyTorch CUDA memory allocator to prevent segment fragmentation
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
+
     # Attempt to load secrets using Kaggle UserSecretsClient
     try:
         from kaggle_secrets import UserSecretsClient  # type: ignore
