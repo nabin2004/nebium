@@ -41,6 +41,9 @@ Nebium is a from-scratch causal Transformer engineered for self-supervised next-
 | `src/interpretability/` | Probing classifiers, board state decoders, and attention pattern extraction. |
 | `src/hub/` | Hugging Face model/dataset push utilities. |
 | `src/utils/kaggle.py` | Kaggle API synchronization, notebook generation, and artifact retrieval. |
+| `nebium/` | Public top-level package API (`load_model`, `predict_next_moves`, `nebium.utils`). |
+| `nebium_scope/` | Editable intelligence & interpretability toolkit (Gradio UI, activation steering, logit lens). |
+| `docs/NEBIUM_SCOPE.md` | Comprehensive developer documentation & API reference for NebiumScope. |
 | `configs/` | Hydra configuration tree (`config.yaml`, `model/`, `training/`, `data/`, `logging/`, `hub/`). |
 | `data/fixtures/` | Checked-in sample PGN for cheap unit and integration tests. |
 | `report/latex/` | Full academic research paper (main.tex, sections, references, figures). |
@@ -83,6 +86,11 @@ The project uses Python 3.10+ (typically 3.12) managed via **`uv`**.
   uv run pytest
   # Skip integration tests if needed:
   uv run pytest -m "not integration"
+  ```
+- **Launch NebiumScope Gradio Dashboard:**
+  ```powershell
+  python -m nebium_scope.app --port 7860
+  # Or programmatically: python -c "import nebium_scope as ns; ns.launch()"
   ```
 - **Train Locally (Without external logging):**
   ```powershell

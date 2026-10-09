@@ -25,6 +25,7 @@ from nebium.hub import (
     clean_and_extract_state_dict,
 )
 from nebium import utils
+import nebium_scope as scope
 
 
 __version__ = "0.1.0"
@@ -42,5 +43,6 @@ __all__ = [
     "PRESET_ALIASES",
     "HF_REPOS",
     "utils",
+    "scope",
 ]
 

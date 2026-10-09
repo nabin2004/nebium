@@ -67,6 +67,35 @@ print(utils.get_material_balance(board))        # Piece count & differential
 print(utils.board_to_features(board))           # Turn, check, FEN, castling
 ```
 
+### NebiumScope: Interpretability & Editable Intelligence (`nebium_scope`)
+
+`nebium_scope` is an interactive interpretability toolkit for probing, visualizing, and steering chess rule representations (e.g., pawns moving backward, forward captures, knight diagonal leaps) on Nebium transformers without retraining.
+
+Features:
+- **Rule Engine & DSL:** Counterfactual move set generation with `VariantBoard` (`pawn_backward_one`, `pawn_capture_forward`, `knight_diagonal`, `super_pawn`).
+- **Activation Steering:** Causal interventions ($h_{\ell}[t] \leftarrow h_{\ell}[t] + \alpha \cdot v$) using contrastive concept directions.
+- **Logit Lens:** Layer-by-layer move probability projection through final norm and language model head.
+- **Interactive Gradio Dashboard:** 4 tabs (Position Explorer, Causal Edit Lab, Logit Lens Inspector, Rule Benchmark Suite) with color-coded SVG chessboard arrows.
+
+```python
+import nebium_scope as ns
+
+# 1. Launch the interactive Gradio Dashboard (http://localhost:7860)
+ns.launch(server_port=7860)
+
+# 2. Programmatic rule steering:
+from nebium_scope.model import NebiumAdapter
+from nebium_scope.interventions import ActivationSteering, ConceptVectorBuilder
+
+adapter = NebiumAdapter(model, tokenizer)
+vector = ConceptVectorBuilder.generate_mock_vector(d_model=adapter.d_model)
+
+with ActivationSteering(adapter, layer=14, vector=vector, alpha=1.5):
+    steered_moves = adapter.predict_top_k("e2e4 e7e5", k=5)
+```
+
+See [docs/NEBIUM_SCOPE.md](docs/NEBIUM_SCOPE.md) for the full developer guide, API reference, and experiment protocols.
+
 ## Design principles
 
 
