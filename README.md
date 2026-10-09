@@ -36,7 +36,39 @@ model_small = nebium.build_model("small")  # 117M params
 model_large = nebium.build_model("large")  # 762M params
 ```
 
+### Board Debugging & Spatial Features (`nebium.utils`)
+
+The `nebium.utils` submodule provides utilities for validating UCI moves, inspecting spatial board features, rendering positions, and diagnosing model predictions:
+
+```python
+import nebium
+from nebium import utils
+
+# 1. Comprehensive diagnostic report on move sequences & candidate legality:
+diag = utils.debug_position(
+    prompt="e2e4 e7e5 g1f3",
+    model=model,          # Optional: tests model's top predictions
+    tokenizer=tokenizer,
+    candidate_moves=["b8c6", "e8e7", "a1a8"], # Tests specific moves
+    verbose=True,         # Prints ASCII board, material diff, legality & reasons
+)
+
+# 2. Extract 12-channel binary piece plane tensor (12, 8, 8) for probing/probing classifiers:
+board = utils.get_board("e2e4 e7e5 g1f3")
+tensor = utils.board_to_tensor(board)  # Shape: torch.Size([12, 8, 8])
+
+# 3. Visualize position (renders rich SVG in Jupyter/Kaggle or ASCII in terminal):
+utils.display_board("e2e4 e7e5 g1f3")
+
+# 4. Move legality and board feature inspection:
+print(utils.is_legal_move(board, "b8c6"))       # True
+print(utils.get_legal_moves(board))             # List of all 29 legal UCI moves
+print(utils.get_material_balance(board))        # Piece count & differential
+print(utils.board_to_features(board))           # Turn, check, FEN, castling
+```
+
 ## Design principles
+
 
 1. Configuration over code
 2. Pluggable components

@@ -24,6 +24,8 @@ from nebium.hub import (
     load_tokenizer,
     clean_and_extract_state_dict,
 )
+from nebium import utils
+
 
 __version__ = "0.1.0"
 
@@ -39,4 +41,6 @@ __all__ = [
     "MODEL_PRESETS",
     "PRESET_ALIASES",
     "HF_REPOS",
+    "utils",
 ]
+

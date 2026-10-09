@@ -55,6 +55,50 @@ def test_model_inference_helpers():
     m = build_model("stub")
     tok = ChessTokenizer()
     # Dummy mock vocab for stub testing
-    # Test predict_next_moves and generate_moves handles empty/mock gracefully
     tokens = m.generate_moves("", tok, max_new_moves=1)
     assert isinstance(tokens, str)
+
+
+def test_utils_board_and_legal_moves():
+    board = nebium.utils.get_board("e2e4 e7e5 g1f3")
+    assert board.fen().startswith("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R")
+    assert nebium.utils.is_legal_move(board, "b8c6") is True
+    assert nebium.utils.is_legal_move(board, "e8e1") is False
+
+    legal_moves = nebium.utils.get_legal_moves(board)
+    assert "b8c6" in legal_moves
+    assert len(legal_moves) == 29
+
+
+def test_utils_board_to_tensor():
+    board = nebium.utils.get_board("e2e4")
+    tensor = nebium.utils.board_to_tensor(board)
+    assert tensor.shape == (12, 8, 8)
+    assert tensor.dtype == torch.float32
+    # Check that white pawn moved to e4 (rank 3, file 4 in 0-indexed coords)
+    assert tensor[0, 3, 4] == 1.0
+
+
+def test_utils_visualization():
+    ascii_board = nebium.utils.render_ascii("e2e4")
+    assert "a b c d e f g h" in ascii_board
+    svg_board = nebium.utils.render_svg("e2e4")
+    assert "<svg" in svg_board
+
+
+def test_utils_debug_position():
+    diag = nebium.utils.debug_position(
+        "e2e4 e7e5",
+        candidate_moves=["d2d4", "a1a8"],
+        verbose=False,
+    )
+    assert diag["board"].turn == 1  # chess.WHITE
+    assert len(diag["valid_moves"]) == 2
+    assert len(diag["predictions"]) == 2
+    # d2d4 is legal
+    d2d4_entry = next(p for p in diag["predictions"] if p["move"] == "d2d4")
+    assert d2d4_entry["is_legal"] is True
+    # a1a8 is illegal
+    a1a8_entry = next(p for p in diag["predictions"] if p["move"] == "a1a8")
+    assert a1a8_entry["is_legal"] is False
+

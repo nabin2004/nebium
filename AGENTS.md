@@ -64,6 +64,10 @@ The project uses Python 3.10+ (typically 3.12) managed via **`uv`**.
   import nebium
   model, tokenizer = nebium.load_model("large")  # 'small', 'base', 'medium', 'large'
   continuation = model.generate_moves("e2e4 e7e5", tokenizer)
+
+  # Move debugging and spatial board features:
+  diag = nebium.utils.debug_position("e2e4 e7e5", model=model, tokenizer=tokenizer)
+  tensor = nebium.utils.board_to_tensor("e2e4 e7e5")  # (12, 8, 8) piece planes
   ```
 - **Environment Sync (Local Repo):**
   ```powershell
