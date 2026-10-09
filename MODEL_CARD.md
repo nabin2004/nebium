@@ -8,7 +8,11 @@ tags:
 
 # Nebium Chess Transformer
 
-Nebium is a small autoregressive transformer model designed to play chess by predicting standard UCI moves directly from move history. It is trained entirely in a self-supervised manner on a dataset of chess games.
+Nebium is a causal transformer model designed to play chess by predicting standard UCI moves directly from move history. It is trained entirely in a self-supervised manner on competitive chess games.
+
+## Model Repositories
+- **Nebium-Large (762M PyTorch FP16):** [nabin2004/nebium-large](https://huggingface.co/nabin2004/nebium-large)
+- **Nebium-Large (762M GGUF):** [nabin2004/nebium-large-gguf](https://huggingface.co/nabin2004/nebium-large-gguf)
 
 ## Model Details
 

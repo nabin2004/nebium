@@ -22,7 +22,7 @@ Parameters $\theta$ are optimized by minimizing expected cross-entropy loss over
 \begin{equation}
     \mathcal{L}_{\text{CE}}(\theta) = - \mathbb{E}_{\mathbf{x} \sim \mathcal{D}} \left[ \frac{1}{T} \sum_{t=1}^T \log P_\theta(x_t \mid x_{<t}) \right]
 \end{equation}
-As shown in Figure~\ref{fig:ml_problem}, the model predicts each move by conditioning strictly on earlier plies ($x_{<t}$), learning board transitions purely from game history.
+As shown in Figure~\ref{fig:ml_problem}, the model conditions strictly on earlier plies ($x_{<t}$), learning board state transitions from history alone.
 
 This formulation introduces three core representation challenges:
 \begin{enumerate}
@@ -33,7 +33,7 @@ This formulation introduces three core representation challenges:
 
 \subsection{Dataset Characterization and Acquisition}
 \label{sec:dataset_char}
-To train Nebium without overfitting to degenerate play, this project employs the \textbf{Lichess Open Database} \parencite{stockl-2021-watching}, which archives monthly competitive games in Portable Game Notation (PGN) format. We isolated an archival subset from early 2013 containing 245,293 tournament matches (Figure~\ref{fig:pgn_format}).
+To avoid degenerate play, training uses the \textbf{Lichess Open Database} \parencite{stockl-2021-watching}, isolating an archival subset of 245,293 tournament matches from early 2013 (Figure~\ref{fig:pgn_format}).
 
 \begin{figure}[H]
   \centering
@@ -43,18 +43,18 @@ To train Nebium without overfitting to degenerate play, this project employs the
 \end{figure}
 
 \subsubsection{Data Filtering and Cleaning Pipeline}
-Raw PGN dumps exhibit substantial variance in player expertise, clock aborts, and non-standard variants. An automated extraction pipeline (\texttt{src/data/prepare.py}) enforced four filtration criteria:
+Raw PGN files exhibit variable player expertise and clock aborts. An automated pipeline (\texttt{src/data/prepare.py}) applied four filtration criteria:
 \begin{itemize}
-    \item \textbf{Variant Filtering}: Retained standard chess games (\texttt{Variant "Standard"}), stripping chess960 and non-standard variants.
-    \item \textbf{Game Length}: Discarded matches terminating in $<10$ plies; games exceeding 256 plies were truncated to the context limit.
-    \item \textbf{Skill Floor}: Retained games where both players maintained an Elo rating $\ge 1500$, removing low-rated noise.
-    \item \textbf{Metadata Stripping}: Discarded non-sequential metadata tags, isolating pure move strings terminated by match outcomes (\texttt{1-0}, \texttt{0-1}, \texttt{1/2-1/2}).
+    \item Retained standard games (\texttt{Variant "Standard"}), excluding Chess960 and non-standard variants.
+    \item Discarded matches terminating in $<10$ plies; games exceeding 256 plies were truncated to the context limit.
+    \item Retained games where both players maintained an Elo rating $\ge 1500$, removing low-rated noise.
+    \item Discarded non-sequential metadata tags, isolating pure move strings terminated by match outcomes (\texttt{1-0}, \texttt{0-1}, \texttt{1/2-1/2}).
 \end{itemize}
-The filtered corpus comprises 208,412 games partitioned into \textbf{training} (85\%, 177,150 games), \textbf{validation} (10\%, 20,841 games), and \textbf{held-out test} sets (5\%, 10,421 games).
+The resulting 208,412 games are partitioned into \textbf{training} (85\%, 177,150 games), \textbf{validation} (10\%, 20,841 games), and \textbf{test} sets (5\%, 10,421 games).
 
 \subsection{Move Representation and Tokenization Strategy}
 \label{sec:move_rep}
-Standard Algebraic Notation (SAN)---such as \texttt{Nxf7+}---is human-readable but introduces linguistic ambiguity (e.g., disambiguation prefixes like \texttt{Nbd7}). To eliminate ambiguity, Nebium standardizes games into the \textbf{Universal Chess Interface (UCI)} coordinate format, where each move specifies Cartesian origin and destination squares:
+Standard Algebraic Notation (SAN) such as \texttt{Nxf7+} is human-readable format but introduces linguistic ambiguity (e.g., disambiguation prefixes like \texttt{Nbd7}). To eliminate ambiguity, Nebium standardizes games into the \textbf{Universal Chess Interface (UCI)} coordinate format, where each move specifies Cartesian origin and destination squares:
 \begin{equation}
     \label{eq:uci_format}
     m = \langle \text{file}_1, \text{rank}_1, \text{file}_2, \text{rank}_2, [\text{promotion}] \rangle \in \{\texttt{a1}\dots\texttt{h8}\} \times \{\texttt{a1}\dots\texttt{h8}\} \times \{\epsilon, \texttt{q}, \texttt{r}, \texttt{b}, \texttt{n}\}
@@ -62,15 +62,15 @@ Standard Algebraic Notation (SAN)---such as \texttt{Nxf7+}---is human-readable b
 For example, moving a pawn from e2 to e4 is uniquely encoded as \texttt{e2e4}, kingside castling as \texttt{e1g1}, and queen promotion as \texttt{e7e8q}.
 
 \subsubsection{Byte-Pair Encoding (BPE) Tokenization}
-Tokenization critically governs transformer efficiency. Character-level tokenization expands sequence lengths by $4\times$, diluting attention across plies \parencite{stockl-2021-watching}. Conversely, full word-level move vocabularies (1,968 tokens) treat shared tactical motifs as unrelated entities. To balance sequence length and vocabulary size, we trained a custom BPE tokenizer (\texttt{ChessTokenizerHF}, Figure~\ref{fig:tokenizer}). Starting from ASCII characters, it merges frequent coordinate pairs into a compact 5,000-token vocabulary, reserving control tokens:
+Tokenization directly influences transformer efficiency. Character tokenization quadruples sequence lengths, diluting attention over extended plies \parencite{stockl-2021-watching}, while naive word indexing lacks sub-coordinate compositionality. We trained a domain BPE tokenizer (\texttt{ChessTokenizerHF}, Figure~\ref{fig:tokenizer}) starting from 83 base ASCII characters and sub-units. Under whitespace pre-tokenization, BPE merges character pairs into complete UCI move strings. Because whitespace bounds each move, the vocabulary exhausts once all 1,968 distinct tournament moves in the corpus are merged, producing a domain vocabulary of $V = 2,056$ tokens with five control tokens:
 \begin{equation}
     \mathcal{V}_{\text{special}} = \left\{ [\texttt{PAD}], [\texttt{UNK}], [\texttt{BOS}], [\texttt{EOS}], [\texttt{SEP}] \right\}
 \end{equation}
-Preserving whitespace boundaries enables the tokenizer to encode frequent opening lines and tactical exchanges (e.g., \texttt{e2e4 e7e5}) as single compound subwords, substantially compressing sequence length.
+This preserves 1:1 token-to-move alignment across the autoregressive horizon without sequence dilution.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.88\linewidth]{figures/tokenizerChessBPE.pdf}
-  \caption[BPE Tokenization Pipeline]{Byte-Pair Encoding pipeline for chess moves. Starting from individual coordinate characters, frequent move pairs merge into a compact 5,000-token vocabulary that captures common opening phrases as single tokens.}
+  \caption[BPE Tokenization Pipeline]{Byte-Pair Encoding pipeline for chess moves. Starting from individual coordinate characters, frequent sub-tokens merge into a compact 2,056-token vocabulary spanning all observed UCI tournament moves.}
   \label{fig:tokenizer}
 \end{figure}

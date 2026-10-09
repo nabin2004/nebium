@@ -31,5 +31,26 @@ This spawns a Uvicorn server on `0.0.0.1:8000`.
   - The API initializes a `python-chess` board with the FEN, pushes the sequence of moves, and then prompts the Nebium model to generate the next `max_moves`.
   - The endpoint natively utilizes the `legal_tokens_filter` function defined in `benchmark_latency.py` to ensure the API never returns an invalid chess move.
 
-### Gradio UI UI
-There is an experimental Gradio interface provided in `scripts/app.py` for testing Transformer generations interactively.
+### 4. Interactive Gradio UI
+Nebium provides a full-featured visual chessboard and generation interface in [`scripts/app.py`](../../scripts/app.py) (also accessible at root [`app.py`](../../app.py)).
+
+- **Model Family Selection:** Seamlessly switch between Nebium-Small (117M), Nebium-Medium (345M), Nebium-Large (762M), Nebium-Base (6M), and local checkpoints (`best_model.pt`).
+- **Interactive SVG Board:** Real-time visual board rendering with last-move highlights, SAN move history, FEN export, and game status.
+- **Rule Enforcement:** Optional real-time legal move filtering guaranteeing valid moves.
+
+#### Local Execution
+```bash
+# Run locally on http://127.0.0.1:7860
+uv run python scripts/app.py
+
+# Launch with a public shareable HTTPS link:
+uv run python scripts/app.py --share
+```
+
+#### Hugging Face Spaces Deployment via CLI
+To deploy the interactive web UI directly to Hugging Face Spaces:
+```bash
+# Package and deploy to Hugging Face Spaces:
+uv run python scripts/deploy_space.py --repo-id nabin2004/nebium-chess
+```
+

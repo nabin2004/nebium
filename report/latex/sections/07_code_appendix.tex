@@ -1,7 +1,7 @@
 \section{Core Implementation Code}
 \label{sec:code_appendix}
 
-In compliance with the coursework specification, this appendix provides the concise, commented Python source code implementing the core architectural components, rotary positional encodings, subword tokenization, and dynamic legal move evaluation loop from the Nebium framework.
+In compliance with the coursework specification, this appendix provides the commented source code, Hydra configuration specifications, and reproducible execution pipelines from the Nebium framework. Specifically, this appendix details the model architecture components, rotary positional encodings, SwiGLU activation, dynamic legal move inference loop, multi-tier training runner scripts for all three family models, the complete Hydra YAML configuration hierarchy, and the automated Weights \& Biases empirical diagram reproduction script.
 
 \subsection{Nebium Model Architecture and Causal Forward Pass}
 \label{sec:code_nebium}
@@ -203,3 +203,236 @@ def generate_sample_games(
             results.append({"prompt": prompt, "game": " ".join([m.uci() for m in board.move_stack])})
     return results
 \end{lstlisting}
+
+\subsection{Multi-Tier Model Training Pipeline and Launch Scripts}
+\label{sec:code_training_scripts}
+
+\begin{lstlisting}[language=Python, label={lst:code_runner}, caption={Sequential multi-tier training and export runner implemented in notebooks/kaggle\_train.ipynb and scripts/build\_kaggle\_notebook.py.}]
+import gc
+import subprocess
+import sys
+import torch
+from pathlib import Path
+
+# Specification of model tiers, configurations, and target artifacts
+TIERS = [
+    {
+        "tier": "small",
+        "name": "Nebium-Small (117M)",
+        "config": "kaggle_small",
+        "checkpoint": "checkpoint_small.pt",
+    },
+    {
+        "tier": "medium",
+        "name": "Nebium-Medium (345M)",
+        "config": "kaggle_medium",
+        "checkpoint": "checkpoint_medium.pt",
+    },
+    {
+        "tier": "large",
+        "name": "Nebium-Large (762M)",
+        "config": "kaggle_large",
+        "checkpoint": "checkpoint_large.pt",
+    },
+]
+
+def run_multi_tier_training(selected_tiers: list[str] | None = None) -> None:
+    """
+    Sequentially trains, evaluates, exports to GGUF, and publishes all model tiers.
+    Enforces VRAM deallocation and cache clearing between runs.
+    """
+    if selected_tiers is None:
+        selected_tiers = ["small", "medium", "large"]
+
+    for item in TIERS:
+        tier = item["tier"]
+        if tier not in selected_tiers:
+            continue
+
+        print(f"\n{'='*70}\nLaunching Training: {item['name']}\n{'='*70}")
+        # Flush VRAM allocation tables to ensure clean memory footprint
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+        cmd = [
+            sys.executable, "scripts/train.py",
+            f"--config-name={item['config']}",
+            "data.hf_dataset.repo_id=nabin2004/nebium-lichess-uci",
+            f"hub.repo_id=nabin2004/nebium-{tier}",
+            f"hub.gguf_repo_id=nabin2004/nebium-{tier}-gguf",
+            "hub.push=true",
+            "hub.push_gguf_repo=true",
+            "hub.private=false",
+        ]
+        print(f"Executing: {' '.join(cmd)}")
+        result = subprocess.run(cmd)
+
+        if result.returncode != 0:
+            print(f"[ERROR] Training failed for {item['name']} (exit code {result.returncode})")
+        else:
+            print(f"[SUCCESS] Completed training and Hub publishing for {item['name']}")
+
+        # Clear memory before subsequent execution
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+if __name__ == "__main__":
+    run_multi_tier_training()
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash, label={lst:code_cli_train}, caption={Command-line training invocations for all three model tiers.}]
+# 1. Nebium-Small (117M parameters, 12 layers, d_model=768, batch=4, accum=32)
+python scripts/train.py --config-name=kaggle_small \
+    data.hf_dataset.repo_id=nabin2004/nebium-lichess-uci \
+    hub.repo_id=nabin2004/nebium-small \
+    hub.gguf_repo_id=nabin2004/nebium-small-gguf \
+    hub.push=true hub.push_gguf_repo=true hub.private=false
+
+# 2. Nebium-Medium (345M parameters, 24 layers, d_model=1024, batch=2, accum=64)
+python scripts/train.py --config-name=kaggle_medium \
+    data.hf_dataset.repo_id=nabin2004/nebium-lichess-uci \
+    hub.repo_id=nabin2004/nebium-medium \
+    hub.gguf_repo_id=nabin2004/nebium-medium-gguf \
+    hub.push=true hub.push_gguf_repo=true hub.private=false
+
+# 3. Nebium-Large (762M parameters, 36 layers, d_model=1280, batch=1, accum=128, 8-bit AdamW)
+python scripts/train.py --config-name=kaggle_large \
+    data.hf_dataset.repo_id=nabin2004/nebium-lichess-uci \
+    hub.repo_id=nabin2004/nebium-large \
+    hub.gguf_repo_id=nabin2004/nebium-large-gguf \
+    hub.push=true hub.push_gguf_repo=true hub.private=false
+\end{lstlisting}
+
+\subsection{Hydra Configuration Files (YAML)}
+\label{sec:code_yaml_configs}
+
+\begin{lstlisting}[language=yaml, label={lst:yaml_root_small}, caption={Root platform configuration for Nebium-Small in configs/kaggle\_small.yaml.}]
+defaults:
+  - model: nebium_117m
+  - training: kaggle_117m
+  - data: kaggle
+  - logging: wandb
+  - hub: huggingface
+  - _self_
+
+smoke_test: false
+
+hydra:
+  run:
+    dir: /kaggle/working/outputs/nebium-small-${now:%Y-%m-%d_%H-%M-%S}
+\end{lstlisting}
+
+\begin{lstlisting}[language=yaml, label={lst:yaml_train_small}, caption={Training optimization configuration for Nebium-Small in configs/training/kaggle\_117m.yaml.}]
+# Nebium-Small (117M) -- GPT-2 Small scale (Chinchilla-optimal: ~2.3B tokens)
+optimizer: adamw
+learning_rate: 3e-4
+weight_decay: 0.1
+lr_scheduler: cosine
+warmup_steps: 2000
+batch_size: 4
+epochs: 20
+gradient_accumulation_steps: 32       # Effective batch: 128 sequences
+mixed_precision: fp16
+gradient_clipping: 1.0
+early_stopping_patience: 5
+eval_samples: true
+eval_puzzles: true
+puzzle_path: "data/fixtures/puzzles.jsonl"
+sample_prompts:
+  - ""
+  - "e2e4"
+  - "d2d4"
+sample_max_moves: 20
+sample_temperature: 0.7
+export_gguf: true
+gguf_precision: fp16
+generate_report: false
+\end{lstlisting}
+
+\begin{lstlisting}[language=yaml, label={lst:yaml_train_medium}, caption={Training optimization configuration for Nebium-Medium in configs/training/kaggle\_345m.yaml.}]
+# Nebium-Medium (345M) -- GPT-2 Medium scale (Chinchilla-optimal: ~6.9B tokens)
+optimizer: adamw
+learning_rate: 2e-4
+weight_decay: 0.1
+lr_scheduler: cosine
+warmup_steps: 2000
+batch_size: 2
+epochs: 20
+gradient_accumulation_steps: 64       # Effective batch: 128 sequences
+mixed_precision: fp16
+gradient_clipping: 1.0
+early_stopping_patience: 5
+eval_samples: true
+eval_puzzles: true
+puzzle_path: "data/fixtures/puzzles.jsonl"
+sample_prompts:
+  - ""
+  - "e2e4"
+  - "d2d4"
+sample_max_moves: 20
+sample_temperature: 0.7
+export_gguf: true
+gguf_precision: fp16
+generate_report: false
+\end{lstlisting}
+
+\begin{lstlisting}[language=yaml, label={lst:yaml_train_large}, caption={Training optimization configuration for Nebium-Large in configs/training/kaggle\_762m.yaml.}]
+# Nebium-Large (762M) -- GPT-2 Large scale (Chinchilla-optimal: ~15.2B tokens)
+optimizer: adamw_8bit
+learning_rate: 1.5e-4
+weight_decay: 0.1
+lr_scheduler: cosine
+warmup_steps: 3000
+batch_size: 1
+epochs: 3
+gradient_accumulation_steps: 128      # Effective batch: 128 sequences
+mixed_precision: fp16
+gradient_checkpointing: true
+disable_data_parallel: true
+gradient_clipping: 1.0
+early_stopping_patience: 5
+eval_samples: true
+eval_puzzles: true
+puzzle_path: "data/fixtures/puzzles.jsonl"
+sample_prompts:
+  - ""
+  - "e2e4"
+  - "d2d4"
+sample_max_moves: 20
+sample_temperature: 0.7
+export_gguf: true
+gguf_precision: fp16
+generate_report: false
+\end{lstlisting}
+
+\begin{lstlisting}[language=yaml, label={lst:yaml_model_large}, caption={Architectural configuration for Nebium-Large in configs/model/nebium\_762m.yaml.}]
+_target_: src.models.transformer.nebium.Nebium
+vocab_size: 5000
+d_model: 1280
+n_heads: 20
+n_layers: 36
+dropout: 0.1
+positional_encoding: rope
+attention_type: standard
+activation: swiglu
+norm: rmsnorm
+max_seq_len: 1024
+gradient_checkpointing: true
+\end{lstlisting}
+
+\subsection{Weights \& Biases Diagram and Figure Reproduction Script}
+\label{sec:code_wandb_diagrams}
+
+Listing~\ref{lst:code_cli_figure_gen} provides the exact CLI command to reproduce all diagrams using the WandB API.
+
+\begin{lstlisting}[language=bash, label={lst:code_cli_figure_gen}, caption={Executing the reproducible figure generation script with WandB credentials.}]
+# Option A: Supply API key via CLI argument
+python report/latex/scripts/generate_paper_figures.py --api-key <YOUR_WANDB_API_KEY>
+
+# Option B: Authenticate via environment variable
+export WANDB_API_KEY="<YOUR_WANDB_API_KEY>"
+python report/latex/scripts/generate_paper_figures.py
+\end{lstlisting}
+

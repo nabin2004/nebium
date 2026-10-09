@@ -28,8 +28,14 @@ dependencies = [
     "uvicorn>=0.20.0",
 ]
 
+[project.optional-dependencies]
+app = [
+    "spaces>=0.51.3",
+]
+
 [tool.hatch.build.targets.wheel]
-packages = ["src"]               # treat every directory inside src/ as a package
+packages = ["src", "nebium"]
+
 
 [dependency-groups]
 dev = [

@@ -1,31 +1,31 @@
-\section{Software Tools, Frameworks, and Deployment Pipeline}
+\subsection{Software Infrastructure and Toolchain Evaluation}
 \label{sec:tools}
 
-Developing and serving autoregressive game transformers requires frameworks that balance research expressiveness, compiler efficiency, and low-latency edge deployment. Table~\ref{tab:software_tools} provides a comprehensive overview and critical appraisal of the core software tools, libraries, and hardware infrastructure underpinning Nebium.
+Autoregressive game transformers require frameworks balancing research expressiveness, compiler efficiency, and low-latency edge serving. Table~\ref{tab:software_tools} summarizes the software tools and hardware infrastructure underpinning Nebium.
 
 \begin{table}[H]
 \centering
 \small
-\caption{Comprehensive overview and critical appraisal of software tools, frameworks, and deployment infrastructure.}
+\caption[Software Tools, Frameworks, and Infrastructure]{Comprehensive overview and critical appraisal of software tools, frameworks, and deployment infrastructure.}
 \label{tab:software_tools}
 \begin{tabularx}{\linewidth}{l p{3.2cm} X}
 \toprule
 \textbf{Category} & \textbf{Tool / Environment} & \textbf{Role and Critical Appraisal} \\
 \midrule
 Deep Learning & PyTorch 2.3 \parencite{paszke2019pytorch} & Dynamic eager execution graph with TorchDynamo and native fused FlashAttention-2 kernels (SDPA); eliminates static graph tracing friction seen in TensorFlow. \\
-Edge Serving & GGUF / \texttt{llama.\allowbreak cpp} \parencite{gerganov2023llamacpp} & Monolithic binary format embedding weights and BPE metadata; enables zero-copy \texttt{mmap} and 4-bit \texttt{Q4\_K\_M} quantization (4.1~ms CPU latency), bypassing ONNX dependency bloat and GIL contention. \\
+Edge Serving & GGUF / \texttt{llama.\allowbreak cpp} \parencite{gerganov2023llamacpp} & Monolithic binary format embedding weights and BPE metadata; enables zero-copy \texttt{mmap} and 4-bit \texttt{Q4\_K\_M} block quantization (88.1~MB for Small), bypassing ONNX dependency bloat and Python runtime overhead. \\
 Compute Hardware & $2\times$ NVIDIA T4 (Kaggle) & Cloud GPU cluster with native FP16 Automatic Mixed Precision (\texttt{torch.cuda.amp}) for memory-efficient gradient updates. \\
 Rule Validation & python-chess \parencite{romstad2024pythonchess} & Pure 64-bit bitboard manipulation and dynamic legal move logit masking, eliminating illegal hallucinations. \\
 Analysis Oracle & Stockfish 16 \parencite{stockfish2023} & Grandmaster engine communicating via UCI for centipawn loss ($\Delta\text{CP}$) auditing and benchmark play. \\
-Tokenization & HuggingFace Tokenizers & Rust-accelerated Byte-Pair Encoding (\texttt{ChessTokenizerHF}) producing a compact 5,000-merge coordinate vocabulary. \\
+Tokenization & HuggingFace Tokenizers & Rust-accelerated Byte-Pair Encoding (\texttt{ChessTokenizerHF}) producing a compact 2,056-token domain vocabulary. \\
 Data Ingestion & Zstandard (\texttt{zstandard}) & High-speed streaming decompression of multi-gigabyte Lichess PGN archives without RAM saturation. \\
 Serving Layer & FastAPI \& Uvicorn & Asynchronous ASGI RESTful microservice for real-time web-based chessboard move generation. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{Critical Appraisal: PyTorch and GGUF vs. Legacy Pipelines}
+\subsubsection{Critical Appraisal: PyTorch and GGUF vs. Legacy Pipelines}
 \label{sec:tools_deployment}
-While early neural game engines relied on TensorFlow or Keras for static computational graph execution, modern research has converged on PyTorch~2.3 \parencite{paszke2019pytorch}. TensorFlow's declarative execution (\texttt{@tf.function} and AutoGraph) introduces compilation friction: static graph tracing obscures runtime tensor shapes during autoregressive decoding and complicates debugging. In contrast, PyTorch's native dynamic execution graph, augmented by \texttt{torch.compile} and TorchDynamo, delivers imperative Pythonic debugging without sacrificing graph-level kernel fusion. Crucially, PyTorch~2.3 natively integrates scaled dot-product attention (\texttt{torch.nn.functional.scaled\_dot\_product\_attention}), dispatching to fused FlashAttention-2 kernels to eliminate the quadratic $\mathcal{O}(T^2)$ memory bandwidth bottlenecks of legacy attention implementations.
+While early neural game engines relied on TensorFlow or Keras for static graph execution, modern workflows use PyTorch~2.3 \parencite{paszke2019pytorch}. Declarative graph execution in TensorFlow complicates debugging by obscuring dynamic tensor shapes during autoregressive decoding. In contrast, PyTorch couples imperative debugging with TorchDynamo kernel fusion. PyTorch~2.3 natively integrates scaled dot-product attention, dispatching to fused FlashAttention-2 kernels that remove quadratic $\mathcal{O}(T^2)$ memory bandwidth bottlenecks.
 
-Similarly, edge deployment has evolved away from the Open Neural Network Exchange (ONNX) Runtime \parencite{bai2019onnx} or TensorFlow Serving toward single-file GGUF binaries \parencite{gerganov2023llamacpp}. Traditional ONNX pipelines decouple tensor graphs (\texttt{.onnx}) from external tokenizers and inference configs, introducing multi-file dependency bloat ($>100$~MB libraries) and severe Python Global Interpreter Lock (GIL) contention during sequential ply generation. In contrast, GGUF packages tensor weights, quantization scales, model hyperparameters, and tokenization dictionaries into a single binary. Leveraging POSIX zero-copy memory mapping (\texttt{mmap}), GGUF enables near-zero cold-start initialization and eliminates runtime Python dependencies entirely. Furthermore, GGUF's block-wise $k$-quantization (\texttt{Q4\_K\_M}) compresses Nebium's footprint by 63.7\% (113.6~MB to 41.2~MB) and achieves an inference latency of 4.1~ms per move on commodity CPUs (Section~\ref{sec:exp_latency}), outperforming traditional ONNX INT8 runtimes in throughput and operational simplicity.
+For edge deployment, single-file GGUF binaries \parencite{gerganov2023llamacpp} replace legacy ONNX runtimes \parencite{bai2019onnx}. ONNX pipelines decouple model weights from tokenizers and configs, creating dependency overhead and Python GIL bottlenecks during sequential generation. GGUF packages tensor parameters, quantization scales, and BPE vocabularies into a single binary. Using POSIX zero-copy memory mapping (\texttt{mmap}), GGUF operates without a Python runtime. Block-wise $k$-quantization (\texttt{Q4\_K\_M}) compresses the Nebium-Small checkpoint to 88.1~MB (and Nebium-Large FP16 to 1.43~GB), surpassing multi-file ONNX runtimes in deployment portability and operational simplicity.

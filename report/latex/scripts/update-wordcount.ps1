@@ -6,6 +6,7 @@ $targetFiles = @(
     "02_introduction.tex",
     "03_problem_statement.tex",
     "04_proposed_method.tex",
+    "04b_model_family.tex",
     "05_experiments.tex",
     "06_summary.tex"
 )

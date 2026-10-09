@@ -93,5 +93,22 @@ class ChessTokenizerHF:
         """Token ID for sequence separator ([SEP])."""
         return self.tokenizer.token_to_id("[SEP]")
 
+    @classmethod
+    def from_pretrained(cls, model_name_or_path: str = "base") -> "ChessTokenizerHF":
+        """
+        Loads a ChessTokenizer from Hugging Face Hub or a local path.
 
-ChessTokenizer = ChessTokenizerHF
+        Args:
+            model_name_or_path: Preset size ('base', 'small', 'medium', 'large'),
+                                HF repo ('nabin2004/nebium-large'), or local file/folder.
+
+        Returns:
+            Loaded ChessTokenizer instance.
+        """
+        from nebium.hub import load_tokenizer
+
+        return load_tokenizer(model_name_or_path)
+
+
+ChessTokenizer = ChessTokenizerHF
+

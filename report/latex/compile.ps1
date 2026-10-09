@@ -94,10 +94,11 @@ if ($Clean) {
 if (-not $SkipWordCount) {
     Write-Step "Calculating main-body word count across core sections..."
     $CoreSections = @(
-        "02_introduction.tex",
         "00_tools.tex",
+        "02_introduction.tex",
         "03_problem_statement.tex",
         "04_proposed_method.tex",
+        "04b_model_family.tex",
         "05_experiments.tex",
         "06_summary.tex"
     )
@@ -109,13 +110,19 @@ if (-not $SkipWordCount) {
         $secPath = Join-Path $LatexDir "sections\$sec"
         $words = 0
         if (Test-Path $secPath) {
-            $raw = Get-Content $secPath -Raw -Encoding UTF8
-            # Remove LaTeX comments
-            $stripped = $raw -replace '(?m)%.*$', ''
-            # Remove common LaTeX macros and commands
-            $stripped = $stripped -replace '\\[a-zA-Z]+(\[[^\]]*\])?(\{[^\}]*\})?', ' '
-            # Count alphanumeric words
-            $matches = [regex]::Matches($stripped, '\b[a-zA-Z0-9_\-]+\b')
+            $text = Get-Content $secPath -Raw -Encoding UTF8
+            $text = $text -replace '(?m)%.*$', ''
+            $text = $text -replace '(?s)\\begin\{(table|figure)\*?\}.*?\\end\{\1\*?\}', ' '
+            $text = $text -replace '(?s)\\begin\{(equation|align)\*?\}.*?\\end\{\1\*?\}', ' '
+            $text = $text -replace '\$[^$]*\$', ' '
+            $text = $text -replace '\\(parencite|cite|ref|label)\*?(?:\[[^\]]*\])?\{[^}]*\}', ' '
+            for ($i = 0; $i -lt 3; $i++) {
+                $text = $text -replace '\\(textbf|textit|texttt|emph)\{([^{}]*)\}', '$2'
+            }
+            $text = $text -replace '\\(section|subsection|subsubsection)\*?\{([^{}]*)\}', '$2'
+            $text = $text -replace '\\[a-zA-Z]+', ' '
+            $text = $text -replace '[\{\}\[\]\(\)\\_~]', ' '
+            $matches = $text -split '\s+' | Where-Object { $_ -match '[a-zA-Z0-9]' }
             $words = $matches.Count
             $TotalWords += $words
         }

@@ -2,6 +2,40 @@
 
 A from-scratch causal Transformer for self-supervised next-move prediction on chess games. Configuration is Hydra YAML; the training loop talks to pluggable loggers and datasets, not to PGN or W&B directly.
 
+### Published Models on Hugging Face
+- **Nebium-Large (762M FP16 PyTorch):** [nabin2004/nebium-large](https://huggingface.co/nabin2004/nebium-large)
+- **Nebium-Large (762M GGUF):** [nabin2004/nebium-large-gguf](https://huggingface.co/nabin2004/nebium-large-gguf)
+- **Training Dataset:** [nabin2004/nebium-lichess-uci](https://huggingface.co/datasets/nabin2004/nebium-lichess-uci)
+
+## Quick Install (Kaggle, Colab, or External Analysis)
+
+To load Nebium models in Kaggle or any remote environment without cloning the full repository:
+
+```bash
+pip install git+https://github.com/nabin2004/nebium.git
+```
+
+```python
+import nebium
+
+# 1. Load pre-trained weights & tokenizer from Hugging Face:
+model, tokenizer = nebium.load_model("large")  # Options: 'small', 'base', 'medium', 'large'
+
+# 2. Predict next moves and top probabilities:
+candidates = model.predict_next_moves("e2e4 e7e5 g1f3", tokenizer, top_k=5)
+for move, prob in candidates:
+    print(f"{move:<6} {prob * 100:.2f}%")
+
+# 3. Generate autoregressive move continuations:
+continuation = model.generate_moves("e2e4 e7e5 g1f3", tokenizer, max_new_moves=5)
+print("Continuation:", continuation)
+
+# 4. Or instantiate any model architecture from scratch:
+model_stub = nebium.build_model("stub")    # 8K params
+model_small = nebium.build_model("small")  # 117M params
+model_large = nebium.build_model("large")  # 762M params
+```
+
 ## Design principles
 
 1. Configuration over code
@@ -10,7 +44,7 @@ A from-scratch causal Transformer for self-supervised next-move prediction on ch
 4. Training loop decoupling
 5. Extensibility for future models
 
-## Setup
+## Local Development Setup
 
 Requires Python 3.10+ and [uv](https://docs.astral.sh/uv/).
 

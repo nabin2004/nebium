@@ -19,17 +19,17 @@ Table~\ref{tab:hf_models} lists the published model checkpoints across parameter
 \footnotesize
 \caption{Published Nebium model weights and quantized edge deployment binaries on Hugging Face.}
 \label{tab:hf_models}
-\begin{tabularx}{\linewidth}{@{} p{4.4cm} c c c X @{}}
+\begin{tabularx}{\linewidth}{@{} p{4.6cm} c c c X @{}}
 \toprule
 \textbf{Model ID (\texttt{nabin2004/})} & \textbf{Params} & \textbf{Format} & \textbf{Architecture} & \textbf{Deployment Target \& Notes} \\
 \midrule
-\texttt{nebium} & 28.4M & PyTorch FP16 & $L=6, d=512, H=8$ & Base model for latency benchmarking \\
-\texttt{nebium-small} & 117M & PyTorch FP16 & $L=12, d=768, H=12$ & Primary scaling tier for sequence loss analysis \\
-\texttt{nebium-small-gguf} & 117M & GGUF Q4\_K\_M & $L=12, d=768, H=12$ & Edge binary (88.1~MB) for llama.cpp CPU inference \\
-\texttt{nebium-medium} & 345M & PyTorch FP16 & $L=24, d=1024, H=16$ & Compute-optimal checkpoint (val PPL 6.55, val loss 1.88) \\
-\texttt{nebium-medium-gguf} & 345M & GGUF Q4\_K\_M & $L=24, d=1024, H=16$ & 4-bit block quantized binary for desktop CPUs \\
-\texttt{nebium-large} & 762M & PyTorch FP16 & $L=36, d=1280, H=20$ & Maximum capacity tier trained with 8-bit AdamW \\
-\texttt{nebium-large-gguf} & 762M & GGUF Q4\_K\_M & $L=36, d=1280, H=20$ & 4-bit quantized binary for memory-constrained devices \\
+\href{https://huggingface.co/nabin2004/nebium}{\texttt{nebium}} & 28.4M & PyTorch FP16 & $L=6, d=512, H=8$ & Base model for latency benchmarking \\
+\href{https://huggingface.co/nabin2004/nebium-small}{\texttt{nebium-small}} & 117M & PyTorch FP16 & $L=12, d=768, H=12$ & Primary scaling tier for sequence loss analysis \\
+\href{https://huggingface.co/nabin2004/nebium-small-gguf}{\texttt{nebium-small-gguf}} & 117M & GGUF Q4\_K\_M & $L=12, d=768, H=12$ & Edge binary (88.1~MB) for llama.cpp CPU inference \\
+\href{https://huggingface.co/nabin2004/nebium-medium}{\texttt{nebium-medium}} & 345M & PyTorch FP16 & $L=24, d=1024, H=16$ & Compute-optimal checkpoint (val PPL 10.76, val loss 2.38) \\
+\href{https://huggingface.co/nabin2004/nebium-medium-gguf}{\texttt{nebium-medium-gguf}} & 345M & GGUF Q4\_K\_M & $L=24, d=1024, H=16$ & 4-bit block quantized binary for desktop CPUs \\
+\href{https://huggingface.co/nabin2004/nebium-large}{\texttt{nebium-large}} & 762M & PyTorch FP16 & $L=36, d=1280, H=20$ & Maximum capacity tier trained with 8-bit AdamW \\
+\href{https://huggingface.co/nabin2004/nebium-large-gguf}{\texttt{nebium-large-gguf}} & 762M & GGUF Q4\_K\_M & $L=36, d=1280, H=20$ & 4-bit quantized binary for memory-constrained devices \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -48,9 +48,9 @@ The training, validation, and tactical evaluation corpora are indexed in Table~\
 \toprule
 \textbf{Dataset ID (\texttt{nabin2004/})} & \textbf{Records} & \textbf{Format} & \textbf{Contents and Function} \\
 \midrule
-\texttt{ChessDataset} & $>$2M games & PGN / JSON & Competitive game collection filtered for rating $>2000$ \\
-\texttt{nebium-lichess-2013-uci} & 1.2M plies & UCI text & Standard games from Lichess 2013 opening benchmark \\
-\texttt{nebium-lichess-uci} & Full split & BPE tokens & Domain-tokenized UCI sequences ($V=5,000$) with train/val/test splits \\
+\href{https://huggingface.co/datasets/nabin2004/ChessDataset}{\texttt{ChessDataset}} & $>$2M games & PGN / JSON & Competitive game collection filtered for rating $>2000$ \\
+\href{https://huggingface.co/datasets/nabin2004/nebium-lichess-2013-uci}{\texttt{nebium-lichess-2013-uci}} & 1.2M plies & UCI text & Standard games from Lichess 2013 opening benchmark \\
+\href{https://huggingface.co/datasets/nabin2004/nebium-lichess-uci}{\texttt{nebium-lichess-uci}} & Full split & BPE tokens & Domain-tokenized UCI sequences ($V=2,056$) with train/val/test splits \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -81,3 +81,105 @@ continuation = tokenizer.decode(outputs[0], skip_special_tokens=True)
 print(f"Game prefix: {prompt}")
 print(f"Generated continuation: {continuation}")
 \end{lstlisting}
+
+\subsection{Detailed Hyperparameter Specifications Across Model Tiers}
+\label{sec:appendix_model_configs}
+
+Tables~\ref{tab:config_small}, \ref{tab:config_medium}, and \ref{tab:config_large} provide the full architectural, optimization, and hardware configurations for each tier in the Nebium transformer family. The verbatim Hydra YAML source configurations and automated multi-tier training scripts are documented in Section~\ref{sec:code_yaml_configs} and Section~\ref{sec:code_training_scripts} of the Code Appendix.
+
+\begin{table}[H]
+\centering
+\small
+\caption[Nebium-Small Configuration]{Nebium-Small (117M) architectural and training configuration (\texttt{nebium\_117m.yaml}, \texttt{kaggle\_117m.yaml}).}
+\label{tab:config_small}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+\multicolumn{2}{l}{\textit{Architecture}} \\
+Layers ($L$) / Hidden dim ($d$) / Heads ($H$) & 12 / 768 / 12 \\
+Head dim ($d_k$) / SwiGLU dim ($d_{ff}$) & 64 / 2,048 \\
+Max sequence length & 1,024 tokens \\
+Gradient checkpointing & Disabled \\
+\midrule
+\multicolumn{2}{l}{\textit{Training}} \\
+Optimizer & AdamW ($\beta_1{=}0.9$, $\beta_2{=}0.95$, $\lambda{=}0.1$) \\
+Peak LR / Schedule & $3.0 \times 10^{-4}$ / Cosine, 2,000-step warmup \\
+Per-device batch / Accumulation steps & 4 / 32 (effective: 128 seqs) \\
+Mixed precision / Grad clip & FP16 AMP / $\|\mathbf{g}\|_2 \le 1.0$ \\
+Epochs / Early-stop patience & 20 / 5 \\
+Chinchilla-optimal tokens & $\approx 2.3$B \\
+\midrule
+\multicolumn{2}{l}{\textit{Outputs}} \\
+GGUF export & Q4\_K\_M, FP16 (88.1~MB) \\
+Hugging Face & \texttt{nabin2004/nebium-small} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption[Nebium-Medium Configuration]{Nebium-Medium (345M) architectural and training configuration (\texttt{nebium\_345m.yaml}, \texttt{kaggle\_345m.yaml}).}
+\label{tab:config_medium}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+\multicolumn{2}{l}{\textit{Architecture}} \\
+Layers ($L$) / Hidden dim ($d$) / Heads ($H$) & 24 / 1,024 / 16 \\
+Head dim ($d_k$) / SwiGLU dim ($d_{ff}$) & 64 / 2,736 \\
+Max sequence length & 1,024 tokens \\
+Gradient checkpointing & Disabled \\
+\midrule
+\multicolumn{2}{l}{\textit{Training}} \\
+Optimizer & AdamW ($\beta_1{=}0.9$, $\beta_2{=}0.95$, $\lambda{=}0.1$) \\
+Peak LR / Schedule & $2.0 \times 10^{-4}$ / Cosine, 2,000-step warmup \\
+Per-device batch / Accumulation steps & 2 / 64 (effective: 128 seqs) \\
+Mixed precision / Grad clip & FP16 AMP / $\|\mathbf{g}\|_2 \le 1.0$ \\
+Epochs / Early-stop patience & 20 / 5 \\
+Chinchilla-optimal tokens & $\approx 6.9$B \\
+\midrule
+\multicolumn{2}{l}{\textit{Outputs}} \\
+GGUF export & Q4\_K\_M, FP16 \\
+Hugging Face & \texttt{nabin2004/nebium-medium} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption[Nebium-Large Configuration]{Nebium-Large (762M) architectural and training configuration (\texttt{nebium\_762m.yaml}, \texttt{kaggle\_762m.yaml}). Empirical results from WandB run \texttt{b87goptx} (3 epochs on 12.0M tokens).}
+\label{tab:config_large}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+\multicolumn{2}{l}{\textit{Architecture}} \\
+Layers ($L$) / Hidden dim ($d$) / Heads ($H$) & 36 / 1,280 / 20 \\
+Head dim ($d_k$) / SwiGLU dim ($d_{ff}$) & 64 / 3,416 \\
+Max sequence length & 1,024 tokens \\
+Gradient checkpointing & \textbf{Enabled} \\
+\midrule
+\multicolumn{2}{l}{\textit{Training}} \\
+Optimizer & 8-bit AdamW (\texttt{adamw\_8bit}, $\lambda{=}0.1$) \\
+Peak LR / Schedule & $1.5 \times 10^{-4}$ / Cosine, 3,000-step warmup \\
+Per-device batch / Accumulation steps & 1 / 128 (effective: 128 seqs) \\
+Data parallel & Disabled (\texttt{disable\_data\_parallel: true}) \\
+Mixed precision / Grad clip & FP16 AMP / $\|\mathbf{g}\|_2 \le 1.0$ \\
+Epochs / Early-stop patience & 3 (early run) / 5 \\
+Chinchilla-optimal tokens & $\approx 15.2$B \\
+\midrule
+\multicolumn{2}{l}{\textit{Observed Results (WandB: \texttt{b87goptx}, Epoch 3)}} \\
+Train loss & 6.3074 nats \\
+Validation loss & \textbf{6.0707 nats} (checkpoint minimum) \\
+Validation perplexity & $\approx 435$ \\
+Board-legal move rate & $\approx 80\%$ \\
+\midrule
+\multicolumn{2}{l}{\textit{Outputs}} \\
+GGUF export & Q4\_K\_M, FP16 \\
+Hugging Face & \href{https://huggingface.co/nabin2004/nebium-large}{\texttt{nabin2004/nebium-large}} \\
+\bottomrule
+\end{tabularx}
+\end{table}

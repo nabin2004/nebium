@@ -1,38 +1,33 @@
 \section{Introduction}
 \label{sec:introduction}
 
-Artificial intelligence in combinatorial board games has historically relied on explicit game-tree search, alpha-beta pruning heuristics, and spatial reinforcement learning \parencite{silver2018general,stockfish2023}. Systems like Deep Blue and AlphaZero achieved master-level play by coupling explicit 2D board representations with forward tree simulation. While powerful, these approaches require hardcoded rule engines, specialized state tensors, and search lookahead.
+Combinatorial game AI historically coupled explicit game-tree search with spatial reinforcement learning \parencite{silver2018general,stockfish2023}, relying on hardcoded rule engines and lookahead simulation. In contrast, causal transformers \parencite{vaswani2017attention} raise an important question: \textit{can a neural network induce chess rules, tactics, and positional strategy purely from next-token sequence modeling, without search trees or rule engines?} Sequence-based game models \parencite{Toshniwal2021ChessAA,li2023emergent,ruoss2024amortized} demonstrate that autoregression can implicitly track board state. However, existing implementations suffer from high latency, large memory footprints, and move hallucinations over extended games. Standard models with absolute position embeddings also struggle to generalize across long tactical sequences.
 
-In contrast, advances in causal transformers \parencite{vaswani2017attention,touvron2023llama} raise a compelling question in representation learning: \textit{can a deep neural network induce the latent topology, legal constraints, tactics, and strategic planning of chess purely through sequence modeling over a 1D token stream, devoid of search trees or rule engines?}
-
-Sequence-based game models \parencite{Toshniwal2021ChessAA,li2023emergent,ruoss2024amortized} demonstrate that autoregressive architectures can implicitly track state variables across time steps. However, existing models suffer from high inference latency, excessive compute requirements, and illegal move hallucinations in extended horizons. Furthermore, standard language models utilizing absolute positional embeddings struggle to capture cyclic, turn-based geometric symmetries.
-
-For deployment, modern workflows favor PyTorch~2.3 \parencite{paszke2019pytorch} and GGUF quantization \parencite{gerganov2023llamacpp} over legacy static graphs, eliminating multi-file dependencies and providing a memory-mapped runtime for real-time play.
+For deployment, this project adopts modern approaches, using PyTorch~2.3 \parencite{paszke2019pytorch} and GGUF quantization \parencite{gerganov2023llamacpp} in place of legacy static-graph frameworks.
 
 \subsection{Aims and Objectives}
 \label{sec:intro_aims}
-This research designs, implements, empirically validates, and critically appraises \textbf{Nebium}, a lightweight causal transformer for self-supervised next-move prediction in chess. This study addresses five core objectives:
+This research designs, implements, empirically validates, and critically appraises \textbf{Nebium}, a causal transformer for self-supervised move prediction in chess. This study addresses five core objectives:
 \begin{enumerate}
-    \item Construct an automated pipeline converting raw PGN archives into Universal Chess Interface (UCI) token sequences encoded with a 5,000-merge Byte-Pair Encoding (BPE) vocabulary.
-    \item Assemble a 6-layer causal transformer integrating Rotary Position Embeddings (RoPE) \parencite{su2024roformer}, SwiGLU activations \parencite{shazeer2020glu}, and RMSNorm pre-normalization \parencite{zhang2019root}.
-    \item Train Nebium to evaluate cross-entropy convergence, perplexity, top-$k$ accuracy, and unconstrained move legality across game horizons.
-    \item Evaluate tactical solve rates on Lichess puzzle suites, quantify centipawn blunder distribution against Stockfish 16, and measure inference latency across precision formats.
-    \item Verify out-of-distribution reasoning via $n$-gram memorization testing, critically appraise literature trends, and evaluate ethical and compute implications.
+    \item Construct an automated pipeline converting PGN archives into UCI sequences tokenized with a 2,056-token BPE vocabulary.
+    \item Assemble a causal transformer integrating Rotary Position Embeddings (RoPE) \parencite{su2024roformer}, SwiGLU activations \parencite{shazeer2020glu}, and RMSNorm pre-normalization \parencite{zhang2019root}.
+    \item Train Nebium across parameter scales to evaluate loss convergence, perplexity, top-$k$ accuracy, and unconstrained move legality.
+    \item Evaluate next-token prediction accuracy, validation perplexity, move legality across horizons, and edge serving efficiency.
+    \item Analyze architectural failure modes, coordinate drift over deep game horizons, and ethical and compute implications.
 \end{enumerate}
 
 \subsection{Summary of Dataset and Key Achievements}
 \label{sec:intro_achievements}
-This study uses 245,293 standard competitive games from the Lichess Open Database (January--February 2013), pre-tokenized into UCI coordinate strings and encoded via a 5,000-merge BPE vocabulary.
+This study uses 245,293 standard competitive games from the Lichess Open Database (January--February 2013), pre-tokenized into UCI coordinate strings and encoded via a 2,056-token BPE vocabulary.
 
 The primary achievements of Nebium include:
 \begin{itemize}
-    \item Nebium achieved a validation loss of 1.88, perplexity of 6.55, and top-1 next-move accuracy of 51.4\% (top-5 82.3\%) on held-out master games.
-    \item Under pure unconstrained greedy decoding, Nebium generated 96.8\% legal moves in openings and 84.1\% in middlegames, confirming latent state tracking.
-    \item With dynamic legal masking, Nebium achieved an estimated 1845 Elo against Stockfish Depth 10, limiting critical blunders ($\ge 2.0$ pawns) to 6.2\%.
-    \item 4-bit GGUF export reduced memory footprint to 41.2 MB and lowered per-move latency to 4.1 ms on commodity hardware.
-    \item A 10-gram sequence audit confirmed 0.00\% exact leakage across 2,405 test sequences, proving inductive learning over verbatim memorization.
+    \item Across the model family, Nebium-Small (117M) achieved a validation loss of 2.727 nats (perplexity 15.30) with 100\% opening legality; Nebium-Medium (345M) reached 2.376 nats (perplexity 10.76) and 36.4\% top-1 move accuracy (70.5\% top-5); Nebium-Large (762M, 3 epochs) achieved 6.071 nats loss and 80.0\% legality within its early training trajectory.
+    \item Unconstrained generative rollouts demonstrate that board-level move syntax is acquired early in training, reaching 80.0\% legal move generation on Large by epoch 3 and 100\% opening legality on Small at epoch 20.
+    \item Dynamic legal move masking eliminates invalid coordinate emissions during deployment by projecting transformer output distributions over valid board moves at each ply.
+    \item 4-bit GGUF quantization compresses the Nebium-Small checkpoint to 88.1 MB, allowing lightweight inference execution on standard consumer hardware.
 \end{itemize}
 
 \subsection{Report Organization}
 \label{sec:intro_org}
-Section~\ref{sec:tools} critically appraises software tools and modern deployment pipelines (PyTorch and GGUF versus legacy frameworks). Section~\ref{sec:problem_statement} formalizes the autoregressive problem and dataset pipeline. Section~\ref{sec:proposed_method} details the Nebium architecture, mathematical formulations (RoPE, SwiGLU, RMSNorm), and decoding strategies. Section~\ref{sec:experiments} presents empirical convergence, baseline comparisons, chessboard case studies, and engine benchmarks. Section~\ref{sec:summary} provides critical discussion, failure modes, literature comparisons, ethics, and future work.
+This report follows a five-section structure aligned with module assessment guidelines. Section~\ref{sec:problem_statement} formalizes the autoregressive move generation problem and dataset processing pipeline. Section~\ref{sec:proposed_method} details the proposed methodology, including software and serving infrastructure, mathematical formulations of core architectural components (RoPE, SwiGLU, RMSNorm), dynamic inference masking, and model family scaling tiers. Section~\ref{sec:experiments} presents empirical scaling dynamics, baseline comparisons, and engine benchmarks. Section~\ref{sec:summary} synthesizes findings, failure modes, ethical and environmental considerations, and future extensions.

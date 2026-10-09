@@ -1,0 +1,28 @@
+% ============================================================
+% Subsection 4.7: Nebium Model Family: Scaling Tiers and Architecture
+% ============================================================
+
+\subsection{Nebium Model Family and Parameter Scaling}
+\label{sec:model_family}
+
+To evaluate how model capacity affects move prediction and legality, Nebium was instantiated at three scales: Small (117M), Medium (345M), and Large (762M). All three variants share the core components defined in Section~\ref{sec:proposed_method} which are RoPE, SwiGLU, RMSNorm, and the 2,056-token BPE tokenizer. Scaling varies layer count ($L$), model dimension ($d_{\text{model}}$), and attention heads ($H$), while holding the per-head dimension at $d_k = 64$ to align with GPU Tensor Core memory tiles. Table~\ref{tab:family_overview} summarizes the tier specifications.
+
+\begin{table}[H]
+\centering
+\small
+\caption[Nebium Model Family Architecture Overview]{Nebium model family overview. $d_k = d_{\text{model}} / H$ is the per-head key dimension, held constant at 64 across all tiers. $d_{ff} = 8\lfloor(8d_{\text{model}}/3 + 7)/8\rfloor$ preserves parameter parity with a conventional $4d_{\text{model}}$ FFN.}
+\label{tab:family_overview}
+\begin{tabularx}{\linewidth}{>{\bfseries}l c c c c c c c}
+\toprule
+\textbf{Variant} & \textbf{Params} & \textbf{$L$} & \textbf{$d_{\text{model}}$} & \textbf{$H$} & \textbf{$d_k$} & \textbf{$d_{ff}$} & \textbf{$T_{\text{max}}$} \\
+\midrule
+Nebium-Small  & 117M  & 12 & 768  & 12 & 64 & 2,048 & 1,024 \\
+Nebium-Medium & 345M  & 24 & 1024 & 16 & 64 & 2,736 & 1,024 \\
+Nebium-Large  & 762M  & 36 & 1280 & 20 & 64 & 3,416 & 1,024 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+All linear projections omit bias parameters to avoid unregularized weights. While Small and Medium train through 20 epochs within 16~GB VRAM on dual NVIDIA T4s, the 762M tier required memory-saving adjustments: 8-bit AdamW reduced optimizer states from 8 to 2 bytes per parameter (saving over 4.5~GB VRAM) and gradient checkpointing recomputed intermediate activations. Large trained on a single T4 at micro-batch size 1 with 128 accumulation steps, holding peak memory at 14.5~GB.
+
+Due to hardware session limits, Nebium-Large completed 3 epochs (12.0M tokens), reaching 80.0\% move legality and 6.071 nats validation loss, which matches the early learning rate of Nebium-Small at identical depth. The trained FP16 checkpoint and GGUF binary are published at \href{https://huggingface.co/nabin2004/nebium-large}{\texttt{nabin2004/nebium-large}} and \href{https://huggingface.co/nabin2004/nebium-large-gguf}{\texttt{nabin2004/nebium-large-gguf}}. Appendix~\ref{sec:appendix_model_configs} lists complete hyperparameter tables for all three configurations.

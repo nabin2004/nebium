@@ -5,6 +5,8 @@ Encapsulates token embeddings, stacked TransformerBlocks with RoPE and SwiGLU,
 RMSNorm pre-normalization, language modeling head, and constrained decoding routines.
 """
 
+from typing import Any, Dict, Optional, Union
+
 import torch
 from torch import nn
 
@@ -54,6 +56,10 @@ class Nebium(nn.Module):
             raise ValueError(f"Unknown positional_encoding: {positional_encoding}")
         self.max_seq_len = max_seq_len
         self.gradient_checkpointing = gradient_checkpointing
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.n_layers = n_layers
+        self.vocab_size = vocab_size
         self.token_embed = TokenEmbedding(vocab_size, d_model)
         self.learned_pos = (
             LearnedPositionalEmbedding(max_seq_len, d_model) if positional_encoding == "learned" else None
@@ -252,4 +258,143 @@ class Nebium(nn.Module):
             
         best_seq = beams[0][1]
         return torch.tensor([best_seq], dtype=torch.long, device=input_ids.device)
+
+    @classmethod
+    def from_preset(cls, size: str = "base", **overrides) -> "Nebium":
+        """
+        Instantiates Nebium from a model scaling preset ('stub', 'base', 'small', 'medium', 'large', 'xl').
+
+        Args:
+            size: Preset name or alias (e.g. '117m', 'small', '345m', 'large', '762m').
+            **overrides: Optional parameter overrides (e.g., dropout=0.0).
+
+        Returns:
+            Initialized Nebium instance.
+        """
+        from nebium.presets import get_model_config
+
+        cfg = get_model_config(size, **overrides)
+        return cls(**cfg)
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        model_name_or_path: str = "base",
+        device: Union[str, torch.device, None] = None,
+        **kwargs,
+    ) -> "Nebium":
+        """
+        Loads a pretrained Nebium model from Hugging Face Hub or a local checkpoint.
+
+        Args:
+            model_name_or_path: Preset name ('small', 'base', 'medium', 'large'),
+                                HF repo ('nabin2004/nebium-large'), or local file/folder path.
+            device: Target device ('cuda', 'cpu', torch.device).
+            **kwargs: Extra arguments passed to nebium.hub.load_model.
+
+        Returns:
+            Pretrained Nebium model in eval mode.
+        """
+        from nebium.hub import load_model
+
+        return load_model(
+            model_name_or_path=model_name_or_path,
+            device=device,
+            return_tokenizer=False,
+            **kwargs,
+        )
+
+    @torch.no_grad()
+    def predict_next_moves(
+        self,
+        prompt: str,
+        tokenizer: Any,
+        top_k: int = 5,
+        temperature: float = 1.0,
+    ) -> list[tuple[str, float]]:
+        """
+        Predicts top-k next moves and their probabilities for a space-separated UCI prompt.
+
+        Args:
+            prompt: Space-separated UCI move sequence (e.g. 'e2e4 e7e5 g1f3').
+            tokenizer: ChessTokenizer instance.
+            top_k: Number of highest-probability candidate moves to return.
+            temperature: Softmax sampling temperature.
+
+        Returns:
+            List of (move_string, probability_float) tuples.
+        """
+        self.eval()
+        device = next(self.parameters()).device
+        prompt_str = prompt.strip()
+        encoded = tokenizer.encode(prompt_str) if prompt_str else []
+        bos = getattr(tokenizer, "bos_id", None)
+        token_ids = ([bos] if bos is not None else []) + encoded
+        if not token_ids:
+            token_ids = [0]
+        input_ids = torch.tensor([token_ids], dtype=torch.long, device=device)
+        attention_mask = torch.ones_like(input_ids)
+
+        cropped = input_ids[:, -self.max_seq_len :]
+        cropped_mask = attention_mask[:, -self.max_seq_len :]
+        logits = self.forward(cropped, cropped_mask)[:, -1, :]
+
+        if temperature > 0 and temperature != 1.0:
+            logits = logits / temperature
+
+        probs = torch.softmax(logits, dim=-1)[0]
+        k = min(top_k, probs.size(0))
+        top_probs, top_indices = torch.topk(probs, k)
+
+        return [
+            (tokenizer.decode([idx.item()]).strip(), prob.item())
+            for idx, prob in zip(top_indices, top_probs)
+        ]
+
+    @torch.no_grad()
+    def generate_moves(
+        self,
+        prompt: str,
+        tokenizer: Any,
+        max_new_moves: int = 10,
+        temperature: float = 0.7,
+        top_k: int = 40,
+        top_p: float = 0.9,
+    ) -> str:
+        """
+        Generates continuation moves from a UCI move sequence prompt.
+
+        Args:
+            prompt: Space-separated UCI move sequence (e.g. 'e2e4 e7e5').
+            tokenizer: ChessTokenizer instance.
+            max_new_moves: Maximum number of tokens to generate.
+            temperature: Sampling temperature.
+            top_k: Top-k truncation.
+            top_p: Nucleus sampling threshold.
+
+        Returns:
+            Space-separated UCI move string containing the prompt and continuation.
+        """
+        self.eval()
+        device = next(self.parameters()).device
+        prompt_str = prompt.strip()
+        encoded = tokenizer.encode(prompt_str) if prompt_str else []
+        bos = getattr(tokenizer, "bos_id", None)
+        tokens = ([bos] if bos is not None else []) + encoded
+        if not tokens:
+            tokens = [0]
+        input_ids = torch.tensor([tokens], dtype=torch.long, device=device)
+        attention_mask = torch.ones_like(input_ids)
+
+        out = self.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            max_new_tokens=max_new_moves,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+        )
+        out_ids = [t for t in out[0].tolist() if bos is not None and t != bos]
+        return tokenizer.decode(out_ids).strip()
+
 

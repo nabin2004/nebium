@@ -17,26 +17,9 @@
 \subsection{Summary of Empirical Findings and Limitations}
 \label{sec:summary_findings}
 
-%%% =========================================================================
-%%% [DOCSTRING / AUTHOR NAVIGATION: SUBSECTION 6.1]
-%%% TARGET WORD COUNT: 140 -- 160 words
-%%%
-%%% PURPOSE:
-%%% Synthesize the primary empirical discoveries of the Nebium research project,
-%%% highlighting core architectural takeaways and candid technical limitations.
-%%%
-%%% KEY METRICS & CHECKPOINTS TO POPULATE:
-%%% 1. Core Synthesis:
-%%%    - Efficacy of causal autoregression with modern priors (RoPE, SwiGLU, RMSNorm)
-%%%      for learning complex game grammar without handcrafted board matrices.
-%%%    - Convergence behavior, validation perplexity, and move legality findings.
-%%% 2. Key Limitations Identified:
-%%%    - Endgame spatial drift: breakdown of unconstrained legality over deep plies ($>60$).
-%%%    - Horizon limits of pure feedforward inference in combinatorial tactical branches
-%%%      (e.g., performance drop on $>2000$ Elo puzzles).
-%%% =========================================================================
+The empirical evaluation demonstrates that causal transformers can learn chess grammar directly from coordinate sequences without hardcoded board tensors. Through 20 training epochs, Nebium-Small (117M) converged to a validation loss of 2.727 nats (perplexity 15.30) with 100\% unconstrained opening legality. Scaling to Nebium-Medium (345M) lowered validation loss to 2.376 nats (perplexity 10.76) and raised top-5 move accuracy to 70.5\%. Under dual-T4 compute and session-time limits, Nebium-Large (762M) was trained for 3 epochs, reaching 80.0\% move legality and 6.071 nats validation loss, tracking the early trajectory of the smaller variants at matched depth.
 
-Nebium shows causal transformers can learn chess grammar from coordinate sequences alone. However, unconstrained decoding drifts in long endgames without lookahead search.
+Two primary limitations persist. First, unconstrained decoding exhibits spatial coordinate drift over deep horizons ($>60$ plies), where self-attention fails to preserve piece occupancy without explicit board tracking. Second, single-pass forward inference cannot replace lookahead tree simulation during sharp tactical complications, where finding optimal lines requires multi-ply search rather than greedy probability sampling.
 
 
 % ---------------------------------------------------------------------------
@@ -45,27 +28,9 @@ Nebium shows causal transformers can learn chess grammar from coordinate sequenc
 \subsection{Reinforcement Learning with Verifiable Rewards (RLVR) Post-Training}
 \label{sec:future_rlvr}
 
-%%% =========================================================================
-%%% [DOCSTRING / AUTHOR NAVIGATION: SUBSECTION 6.2]
-%%% TARGET WORD COUNT: 120 -- 140 words
-%%%
-%%% PURPOSE:
-%%% Propose RLVR (Reinforcement Learning with Verifiable Rewards) post-training as
-%%% the next logical phase to eliminate tactical blunders and enforce move legality.
-%%%
-%%% KEY METRICS & CHECKPOINTS TO POPULATE:
-%%% 1. Verifiable Environment Rationale:
-%%%    - Unlike natural language, chess provides deterministic ground-truth verification:
-%%%      legality checking (python-chess), definitive game outcomes (win/loss/draw),
-%%%      and precise engine evaluations (Stockfish centipawn deltas).
-%%% 2. Policy Optimization Framework:
-%%%    - Application of rule-based reward signals using Group Relative Policy
-%%%      Optimization (GRPO) or PPO without requiring subjective human reward models.
-%%%    - Direct penalization for illegal move attempts and critical tactical blunders
-%%%      to bridge the gap in late-game coordinate precision.
-%%% =========================================================================
+Self-supervised pre-training aligns predictions with human game frequency rather than objective move quality. To address tactical errors, post-training via Reinforcement Learning with Verifiable Rewards (RLVR) presents a direct next stage. Unlike natural language, chess provides deterministic ground-truth verification through programmatic state engines: \texttt{python-chess} evaluates move legality instantly, while Stockfish provides centipawn evaluation deltas ($\Delta\text{CP}$) and terminal game outcomes.
 
-Future post-training will use deterministic rule verifiers and reinforcement learning to penalize tactical blunders directly, enforcing late-game move legality.
+This setting allows rule-based policy optimization using Group Relative Policy Optimization (GRPO) or Proximal Policy Optimization (PPO) without subjective human preference models. By sampling trajectory rollouts and assigning negative rewards to illegal moves or blunders exceeding 200 centipawns, policy gradients shift unconstrained generation toward legal, tactical accuracy. Such verifiable reinforcement learning targets coordinate drift in deep horizons while retaining the fast sampling speed of feedforward inference.
 
 
 % ---------------------------------------------------------------------------
@@ -74,23 +39,6 @@ Future post-training will use deterministic rule verifiers and reinforcement lea
 \subsection{Mixture of Experts (MoE) Architecture as an Empirical Test Bed}
 \label{sec:future_moe}
 
-%%% =========================================================================
-%%% [DOCSTRING / AUTHOR NAVIGATION: SUBSECTION 6.3]
-%%% TARGET WORD COUNT: 120 -- 140 words
-%%%
-%%% PURPOSE:
-%%% Propose chess sequence modeling as a controlled, high-throughput test bed
-%%% for Sparse Mixture of Experts (MoE) architectures to analyze expert specialization.
-%%%
-%%% KEY METRICS & CHECKPOINTS TO POPULATE:
-%%% 1. MoE Formulation & Routing:
-%%%    - Replacing dense SwiGLU FFN layers with Top-$k$ gated experts (e.g. 8 experts,
-%%%      Top-2 routing).
-%%% 2. Empirical Investigation Goals:
-%%%    - Inspecting whether experts naturally specialize by strategic game phase
-%%%      (e.g., opening book theory vs. tactical middlegame clashes vs. sparse endgames).
-%%%    - Examining routing divergence across piece types or board regions.
-%%%    - Evaluating compute vs. perplexity trade-offs under identical active parameter budgets.
-%%% =========================================================================
+Autoregressive chess modeling provides a controlled, mathematically bounded domain for investigating Sparse Mixture of Experts (MoE) architectures. By replacing the dense SwiGLU feed-forward sublayers with top-$k$ gated routing over 8 experts (activating 2 per token), total parameter capacity can scale beyond one billion weights while holding inference FLOPs matched to Nebium-Medium.
 
-Replacing dense feed-forward layers with sparse mixture-of-experts will test whether individual experts specialize naturally by opening, middlegame, or endgame phase under fixed compute.
+This environment enables empirical testing of routing specialization across distinct game phases. Because chess games shift between opening book theory, complex middlegames, and simplified endgames, gating routers can be inspected to determine whether individual experts specialize by phase. Quantifying router entropy across game plies and measuring expert activation frequency by piece type will reveal whether sparse conditional computation discovers strategic hierarchies without explicit phase annotations.

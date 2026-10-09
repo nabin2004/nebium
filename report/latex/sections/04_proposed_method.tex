@@ -3,6 +3,8 @@
 
 Nebium is architected as a modernized, decoder-only causal transformer \parencite{vaswani2017attention} optimized specifically for the structural and temporal dynamics of chess sequence modeling. Rather than adopting an unmodified vanilla GPT configuration with standard learned absolute position embeddings and Post-LayerNorm \parencite{deleo2022learning}, Nebium incorporates three architectural mechanisms: \textbf{Rotary Position Embeddings (RoPE)} \parencite{su2024roformer}, \textbf{Swish-Gated Linear Units (SwiGLU)} \parencite{shazeer2020glu}, and \textbf{Root Mean Square Normalization (RMSNorm)} \parencite{zhang2019root}. The system pipeline and block architecture are presented in Figure~\ref{fig:architecture}.
 
+\input{sections/00_tools}
+
 \subsection{End-to-End Architectural Pipeline}
 \label{sec:arch_pipeline}
 Given an input token sequence of length $T$, $\mathbf{x}_{1:T} = (x_1, \dots, x_T) \in \mathbb{N}^T$, the sequence is first mapped into dense representations via a learned token embedding matrix $\mathbf{W}_e \in \mathbb{R}^{V \times d_{\text{model}}}$:
@@ -30,7 +32,7 @@ Table~\ref{tab:model_hyperparams} lists the structural configurations and hyperp
 \toprule
 \textbf{Hyperparameter} & \textbf{Value / Dimension} & \textbf{Design Rationale and Technical Function} \\
 \midrule
-Vocabulary Size & $V = 5,000$ & Domain-trained BPE merges common coordinate sequences and opening pairs without vocabulary explosion \\
+Vocabulary Size & $V = 2,056$ & Domain BPE vocabulary covering all 1,968 observed UCI moves, 83 character sub-units, and 5 control tokens \\
 Embedding Dimension & $d_{\text{model}} = 512$ & Provides latent capacity for piece-square interactions while matching head dimension $d_k = 64$ \\
 Number of Layers & $L = 6$ & Provides hierarchical depth for multi-ply tactical reasoning while maintaining stable gradient backpropagation \\
 Attention Heads & $h = 8$ & Divides embeddings into 8 parallel projection subspaces ($d_k = d_{\text{model}}/h = 64$) aligned with tensor cores \\
@@ -65,7 +67,7 @@ Total Parameters & 28.4 Million & Compact footprint enabling sub-10~ms CPU gener
 
 \subsection{Rotary Position Embeddings (RoPE)}
 \label{sec:rope_method}
-Traditional language models rely on absolute learned position embeddings $\mathbf{p}_t \in \mathbb{R}^{d_{\text{model}}}$ added directly to the token embedding ($\mathbf{e}_t + \mathbf{p}_t$). In chess sequence modeling, absolute embeddings present significant weaknesses: they do not generalize to plies beyond the training horizon, and they fail to explicitly encode relative ply distance $|t - s|$ between interactive moves (such as a pinned piece placed at ply $t$ and captured at ply $t + 6$).
+Standard language models rely on absolute position embeddings added directly to token representations ($\mathbf{e}_t + \mathbf{p}_t$). In chess, absolute embeddings fail to encode relative ply intervals $|t - s|$ between piece interactions (such as pin setups and subsequent captures) and fail to generalize past the training context.
 
 Nebium employs Rotary Position Embeddings (RoPE) \parencite{su2024roformer}, which encode positional context by directly rotating query and key representations in the complex plane. Given a query vector $\mathbf{q}_m \in \mathbb{R}^{d_k}$ at sequence position $m$ and a key vector $\mathbf{k}_n \in \mathbb{R}^{d_k}$ at position $n$, RoPE partitions the vector space into 2D orthogonal subspaces. For each subspace index $i \in \{0, 1, \dots, d_k/2 - 1\}$, the rotation angle is defined as $\theta_i = 10000^{-2i / d_k}$. The 2D rotation matrix is given by:
 \begin{equation}
@@ -166,4 +168,6 @@ where $\tau > 0$ controls sampling temperature. The final move probability is co
 \end{equation}
 This mechanism restricts generation strictly to valid moves while preserving the model's relative probability ranking over legal candidates.
 
-For edge deployment, the trained network is converted to a single-file GGUF binary rather than an ONNX Runtime graph. As outlined in Section~\ref{sec:tools_deployment}, ONNX exports separate computation graphs from tokenization code and incur Python runtime overhead on sequential token queries. GGUF embeds weights, 4-bit block quantization scales (\texttt{Q4\_K\_M}), and vocabulary metadata in a single file, supporting memory-mapped C++ execution on consumer CPUs without external runtime dependencies.
+For edge deployment, the trained weights are compiled into a single-file GGUF binary using 4-bit block quantization (\texttt{Q4\_K\_M}), enabling memory-mapped C++ inference on consumer CPUs without external Python runtime dependencies (Section~\ref{sec:tools_deployment}).
+
+\input{sections/04b_model_family}
