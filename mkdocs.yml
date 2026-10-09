@@ -1,0 +1,94 @@
+site_name: "Nebium | Developer Journey & Research Log"
+site_description: "Engineering notes, architecture decisions, research journals, and lessons learned building the Nebium Chess Transformer."
+site_author: "Nabin"
+repo_url: "https://github.com/nabin2004/nebium"
+repo_name: "nabin2004/nebium"
+copyright: "Copyright &copy; 2026 Nebium Research Project"
+
+docs_dir: "dev_docs"
+site_dir: "docs/dev_journey"
+
+theme:
+  name: "material"
+  language: "en"
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: light blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.mark
+  - pymdownx.tilde
+  - tables
+  - footnotes
+  - attr_list
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js
+
+nav:
+  - "Overview": "index.md"
+  - "Dev Journal":
+      - "Journal Index": "journal/index.md"
+      - "01 · Why Causal Transformer for Chess?": "journal/01-why-causal-transformer.md"
+      - "02 · Tokenization & Spatial Geometry": "journal/02-tokenization-and-board-geometry.md"
+      - "03 · Scaling Laws & Compute Alignment": "journal/03-scaling-laws-and-chinchilla.md"
+      - "04 · Editable Intelligence & Activation Steering": "journal/04-editable-intelligence-experiments.md"
+      - "📝 New Entry Template": "journal/template.md"
+  - "Architecture Decisions (ADRs)":
+      - "ADR Index": "decisions/index.md"
+      - "ADR-001 · Rotary Position Embeddings & SwiGLU": "decisions/ADR-001-rope-and-swiglu.md"
+      - "ADR-002 · Decoupled Training via Hydra": "decisions/ADR-002-hydra-decoupled-training.md"
+      - "ADR-003 · GGUF Quantization for Edge & CPU": "decisions/ADR-003-gguf-for-inference.md"
+      - "ADR-004 · Activation Steering for Rule Editing": "decisions/ADR-004-activation-steering.md"
+      - "📋 New ADR Template": "decisions/adr-template.md"
+  - "Research & Learnings (TIL)":
+      - "What Attention Heads Learn in Chess": "learnings/attention-heads-in-chess.md"
+      - "Cross-Entropy vs Perplexity in Discrete Games": "learnings/cross-entropy-vs-perplexity.md"
+      - "Preventing Training Loss Spikes": "learnings/training-stability-and-loss-spikes.md"
+  - "Guide & Workflow":
+      - "How to Write Dev Logs": "guide/how-to-write-dev-logs.md"
+      - "Paper Landing Page ↗": "https://nabin2004.github.io/nebium/"

@@ -96,6 +96,19 @@ with ActivationSteering(adapter, layer=14, vector=vector, alpha=1.5):
 
 See [docs/NEBIUM_SCOPE.md](docs/NEBIUM_SCOPE.md) for the full developer guide, API reference, and experiment protocols.
 
+### Developer Journey & Research Log (`dev_docs/`)
+
+Nebium includes a comprehensive **Developer Journey & Engineering Log** documentation template built with [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/):
+- **Live Local Preview:** `uv run mkdocs serve` (opens on `http://localhost:8000` with live reload)
+- **Compile Production Site:** `uv run mkdocs build` (compiles to `docs/dev_journey/`)
+- **Web Portal:** Access directly from the paper landing page at [docs/index.html](docs/index.html) or `docs/dev_journey/index.html`.
+
+Includes:
+- **Dev Journal:** Chronological entries on hypotheses, architectural pivots, and lessons learned.
+- **Architecture Decision Records (ADRs):** Formal ADRs for RoPE, SwiGLU, Hydra decoupling, GGUF export, and activation steering.
+- **Research Deep Dives:** Notes on attention heads, cross-entropy vs perplexity, and training stability.
+- **Copy-Paste Templates:** Standardized templates for new dev entries and ADRs.
+
 ## Design principles
 
 

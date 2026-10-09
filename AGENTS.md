@@ -43,6 +43,8 @@ Nebium is a from-scratch causal Transformer engineered for self-supervised next-
 | `src/utils/kaggle.py` | Kaggle API synchronization, notebook generation, and artifact retrieval. |
 | `nebium/` | Public top-level package API (`load_model`, `predict_next_moves`, `nebium.utils`). |
 | `nebium_scope/` | Editable intelligence & interpretability toolkit (Gradio UI, activation steering, logit lens). |
+| `dev_docs/` | Developer journey, engineering journal, and Architecture Decision Records (ADRs). |
+| `mkdocs.yml` | MkDocs Material configuration building static docs into `docs/dev_journey/`. |
 | `docs/NEBIUM_SCOPE.md` | Comprehensive developer documentation & API reference for NebiumScope. |
 | `configs/` | Hydra configuration tree (`config.yaml`, `model/`, `training/`, `data/`, `logging/`, `hub/`). |
 | `data/fixtures/` | Checked-in sample PGN for cheap unit and integration tests. |
@@ -91,6 +93,12 @@ The project uses Python 3.10+ (typically 3.12) managed via **`uv`**.
   ```powershell
   python -m nebium_scope.app --port 7860
   # Or programmatically: python -c "import nebium_scope as ns; ns.launch()"
+  ```
+- **Preview Developer Journey & MkDocs Docs (Live Reload):**
+  ```powershell
+  uv run mkdocs serve
+  # Build static production site to docs/dev_journey/:
+  uv run mkdocs build
   ```
 - **Train Locally (Without external logging):**
   ```powershell
