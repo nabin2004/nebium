@@ -18,6 +18,13 @@ from nebium_scope.interventions.vectors import ConceptVectorBuilder
 from nebium_scope.analysis.logit_lens import LogitLens
 from nebium_scope.analysis.metrics import RuleEvaluator
 from nebium_scope.viz.board import render_scope_board
+from nebium_scope.viz.diagrams import (
+    plot_embedding_space,
+    plot_activation_heatmap,
+    plot_layer_dynamics,
+    plot_logit_lens_trajectory,
+    plot_transformer_flow_diagram,
+)
 
 
 def create_dashboard(
@@ -125,14 +132,75 @@ def create_dashboard(
                         metrics_summary = gr.Markdown("### Intervention Metrics\n*Run steering to evaluate.*")
 
                     with gr.Column(scale=6):
-                        steered_board_html = gr.HTML(label="Steered Prediction Board")
+                        with gr.Row():
+                            with gr.Column():
+                                gr.Markdown("##### ♟️ Baseline Prediction Board")
+                                baseline_board_html = gr.HTML(label="Baseline Board")
+                            with gr.Column():
+                                gr.Markdown("##### ⚡ Steered Prediction Board")
+                                steered_board_html = gr.HTML(label="Steered Board")
                         deltas_table = gr.Dataframe(
                             label="Move Probability Deltas (Before vs After Steering)",
                             headers=["Move", "Category", "Baseline Prob", "Steered Prob", "Change"],
                         )
 
             # =================================================================
-            # TAB 3: LOGIT LENS ACROSS DEPTH
+            # TAB 3: VISUAL REPRESENTATION & CIRCUIT EXPLORER
+            # =================================================================
+            with gr.TabItem("🎨 Visual Representation Explorer"):
+                gr.Markdown(
+                    """
+                    **Interactive Representation & Circuit Explorer:**
+                    Visually inspect how Nebium's internal representations change across the embedding space,
+                    transformer residual blocks, and logit lens projections when editing chess rules.
+                    """
+                )
+                with gr.Row():
+                    with gr.Column(scale=3):
+                        diag_layer_slider = gr.Slider(
+                            minimum=0,
+                            maximum=max(0, adapter.num_layers - 1),
+                            value=min(14, adapter.num_layers - 1),
+                            step=1,
+                            label="Target Intervention Layer",
+                        )
+                        diag_alpha_slider = gr.Slider(
+                            minimum=-3.0,
+                            maximum=3.0,
+                            value=1.5,
+                            step=0.1,
+                            label="Steering Strength (α)",
+                        )
+                        normal_move_input = gr.Textbox(
+                            value="e5e6",
+                            label="Standard Legal Move",
+                        )
+                        edited_move_input = gr.Textbox(
+                            value="e5e4",
+                            label="Target Counterfactual Move",
+                        )
+                        update_plots_btn = gr.Button("Update All Visual Diagrams", variant="primary")
+
+                    with gr.Column(scale=7):
+                        with gr.Tabs():
+                            with gr.TabItem("🔮 Embedding Space (2D PCA)"):
+                                gr.Markdown("*PCA projection of piece and square tokens showing displacement induced by rule vector.*")
+                                emb_plot = gr.Plot(label="Embedding Space PCA")
+                            with gr.TabItem("🔥 Layer Activation Heatmap"):
+                                gr.Markdown("*Absolute hidden state perturbation |Δh| across token positions and feature channels.*")
+                                heatmap_plot = gr.Plot(label="Layer Activation Heatmap")
+                            with gr.TabItem("📈 Transformer Depth Dynamics"):
+                                gr.Markdown("*Perturbation norm ||Δh||_2 and cosine similarity across all 24 layers.*")
+                                dynamics_plot = gr.Plot(label="Depth Dynamics")
+                            with gr.TabItem("⚡ Logit Lens Phase Transition"):
+                                gr.Markdown("*Evolution of normal vs edited move probabilities across layers with phase transition marker.*")
+                                trajectory_plot = gr.Plot(label="Logit Lens Trajectory")
+                            with gr.TabItem("🗺️ Architecture Flow Diagram"):
+                                gr.Markdown("*Transformer backbone schematic showing signal flow and intervention injection point.*")
+                                flow_plot = gr.Plot(label="Architecture Circuit Flow")
+
+            # =================================================================
+            # TAB 4: LOGIT LENS TABLE INSPECTOR
             # =================================================================
             with gr.TabItem("🔍 Logit Lens Inspector"):
                 gr.Markdown(
@@ -149,7 +217,7 @@ def create_dashboard(
                 )
 
             # =================================================================
-            # TAB 4: RULE BENCHMARK SUITE
+            # TAB 5: RULE BENCHMARK SUITE
             # =================================================================
             with gr.TabItem("📊 Rule Benchmark"):
                 gr.Markdown(
@@ -230,11 +298,17 @@ def create_dashboard(
             metrics = RuleEvaluator.evaluate(base_preds, steer_preds, diff)
             df = RuleEvaluator.deltas_to_dataframe(metrics)
 
-            board_svg = render_scope_board(
+            base_board_svg = render_scope_board(
+                vb.board,
+                model_moves=base_preds,
+                added_moves=diff.added_moves,
+                size=380,
+            )
+            steer_board_svg = render_scope_board(
                 vb.board,
                 model_moves=steer_preds,
                 added_moves=diff.added_moves,
-                size=440,
+                size=380,
             )
 
             summary_md = f"""
@@ -244,12 +318,39 @@ def create_dashboard(
             - **Illegal Move Rate (IMR):** {metrics.illegal_move_rate_before*100:.1f}% → **{metrics.illegal_move_rate_after*100:.1f}%**
             """
 
-            return board_svg, df, summary_md
+            return base_board_svg, steer_board_svg, df, summary_md
 
         apply_steer_btn.click(
             apply_steering_view,
             inputs=[fen_input, variant_dd, steer_layer_slider, alpha_slider],
-            outputs=[steered_board_html, deltas_table, metrics_summary],
+            outputs=[baseline_board_html, steered_board_html, deltas_table, metrics_summary],
+        )
+
+        def update_visual_diagrams(fen: str, var_key: str, layer: int, alpha: float, norm_move: str, edit_move: str):
+            vec = cached_vectors.get(layer, cached_vectors[0])
+            fig_emb = plot_embedding_space(adapter, rule_variant_name=var_key, edit_strength=alpha)
+            fig_heat = plot_activation_heatmap(adapter, prompt=fen, layer=layer, vector=vec, alpha=alpha)
+            fig_dyn = plot_layer_dynamics(adapter, prompt=fen, steering_layer=layer, vector=vec, alpha=alpha)
+            fig_traj = plot_logit_lens_trajectory(
+                logit_lens,
+                prompt=fen,
+                normal_move=norm_move,
+                edited_move=edit_move,
+                steering_layer=layer,
+                vector=vec,
+                alpha=alpha,
+            )
+            fig_flow = plot_transformer_flow_diagram(
+                num_layers=adapter.num_layers,
+                injection_layer=layer,
+                alpha=alpha,
+            )
+            return fig_emb, fig_heat, fig_dyn, fig_traj, fig_flow
+
+        update_plots_btn.click(
+            update_visual_diagrams,
+            inputs=[fen_input, variant_dd, diag_layer_slider, diag_alpha_slider, normal_move_input, edited_move_input],
+            outputs=[emb_plot, heatmap_plot, dynamics_plot, trajectory_plot, flow_plot],
         )
 
         def compute_logit_lens_view(fen: str):
@@ -295,6 +396,11 @@ def create_dashboard(
             update_position_view,
             inputs=[fen_input, variant_dd],
             outputs=[board_html, normal_moves_box, added_moves_box, model_preds_df],
+        )
+        demo.load(
+            update_visual_diagrams,
+            inputs=[fen_input, variant_dd, diag_layer_slider, diag_alpha_slider, normal_move_input, edited_move_input],
+            outputs=[emb_plot, heatmap_plot, dynamics_plot, trajectory_plot, flow_plot],
         )
 
     return demo

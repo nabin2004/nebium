@@ -244,6 +244,37 @@ print(f"Steered Rule Comply:   {steer_res.complies_with_rule}")
 - **Illegal Move Rate (IMR):** Fraction of predictions that are illegal under *both* normal and edited chess rules.
 - **Target Move Probability Delta ($\Delta P$):** Direct shift in softmax probability assigned to the counterfactual move.
 
+### 4.6 Interactive Visual Diagrams (`nebium_scope.viz`)
+
+NebiumScope provides five high-resolution, dark-themed diagnostic diagrams:
+
+```python
+from nebium_scope.viz import (
+    plot_embedding_space,
+    plot_activation_heatmap,
+    plot_layer_dynamics,
+    plot_logit_lens_trajectory,
+    plot_transformer_flow_diagram,
+)
+
+# 1. 2D PCA projection of token embeddings with rule-edit shift vector (Δ)
+fig_emb = plot_embedding_space(adapter, rule_variant_name="pawn_backward_one", edit_strength=1.5)
+
+# 2. 2D Heatmap of |Δh| perturbation across token positions and feature channels
+fig_heat = plot_activation_heatmap(adapter, prompt="e2e4 e7e5", layer=14, alpha=1.5)
+
+# 3. Layer dynamics: ||Δh_L||_2 perturbation norm and cosine similarity across depth
+fig_dyn = plot_layer_dynamics(adapter, prompt="e2e4 e7e5", steering_layer=14, alpha=1.5)
+
+# 4. Logit lens trajectory: Baseline vs Steered move probabilities + phase transition marker
+fig_traj = plot_logit_lens_trajectory(
+    lens, prompt="e2e4 e7e5", normal_move="e5e6", edited_move="e5e4", steering_layer=14, alpha=1.5
+)
+
+# 5. Architecture circuit flow schematic showing signal flow and injection point
+fig_flow = plot_transformer_flow_diagram(num_layers=24, injection_layer=14, alpha=1.5)
+```
+
 ---
 
 ## 5. End-to-End Experiment: Pawn-Backward Steering on Nebium-Medium
@@ -301,24 +332,30 @@ if __name__ == "__main__":
 
 ## 6. Gradio Dashboard Tour
 
-The Gradio dashboard exposes 4 dedicated tabs optimized for exploratory analysis:
+The Gradio dashboard exposes 5 dedicated tabs optimized for visual exploratory analysis:
 
-1. **Position Explorer:**
+1. **Position & Rule Explorer:**
    - Input custom FEN or move history.
    - Live board visualization rendered as high-res SVG.
    - Color-coded arrows: **Blue** (Top model predictions), **Orange** (Added rule moves), **Green** (User selected target).
-   - Side-by-side display of normal vs edited move sets.
+   - Side-by-side display of normal vs edited move sets and top move predictions.
 
 2. **Causal Edit Lab:**
-   - Interactive $\alpha$ slider ($0.0 \le \alpha \le 3.0$).
-   - Layer selector ($0 \dots 23$).
+   - Interactive $\alpha$ slider ($0.0 \le \alpha \le 3.0$) and layer picker ($0 \dots 23$).
+   - **Side-by-side board comparison panel:** Baseline prediction board vs Steered prediction board.
    - Real-time comparison table showing baseline probability, steered probability, and percentage deltas.
 
-3. **Logit Lens Inspector:**
-   - Depth-wise progression table charting top predicted move, top probability, entropy, and target move probability across all 24 layers.
-   - Highlights the specific phase transition layer where rule representations emerge.
+3. **Visual Representation Explorer:**
+   - **Embedding Space (2D PCA):** PCA projection of piece and square tokens showing displacement induced by rule vector.
+   - **Layer Activation Heatmap:** 2D Heatmap of $|\Delta h|$ across tokens and feature dimensions.
+   - **Transformer Depth Dynamics:** Two stacked panels charting perturbation norm $\| \Delta h_\ell \|_2$ and cosine similarity across all 24 layers.
+   - **Logit Lens Phase Transition:** Softmax probability trajectories across depth highlighting the exact layer where the counterfactual rule prediction emerges.
+   - **Architecture Flow Diagram:** Schematic circuit diagram illustrating token embeddings $\rightarrow$ transformer blocks $\rightarrow$ injection point $\rightarrow$ output logits.
 
-4. **Rule Benchmark Suite:**
+4. **Logit Lens Table Inspector:**
+   - Depth-wise progression table charting top predicted move, top probability, entropy, and top candidates across all 24 layers.
+
+5. **Rule Benchmark Suite:**
    - Batch evaluation across curated position datasets.
    - Automated calculation of RCR, NCR, and IMR metrics with structured summary displays.
 

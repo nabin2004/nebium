@@ -27,6 +27,13 @@ from nebium_scope.analysis.logit_lens import LogitLens, LayerLensRecord
 from nebium_scope.analysis.metrics import RuleEvaluator, InterventionMetrics
 
 from nebium_scope.viz.board import render_scope_board
+from nebium_scope.viz.diagrams import (
+    plot_embedding_space,
+    plot_activation_heatmap,
+    plot_layer_dynamics,
+    plot_logit_lens_trajectory,
+    plot_transformer_flow_diagram,
+)
 from nebium_scope.app import create_dashboard, launch
 
 __version__ = "0.1.0"
@@ -49,6 +56,11 @@ __all__ = [
     "RuleEvaluator",
     "InterventionMetrics",
     "render_scope_board",
+    "plot_embedding_space",
+    "plot_activation_heatmap",
+    "plot_layer_dynamics",
+    "plot_logit_lens_trajectory",
+    "plot_transformer_flow_diagram",
     "create_dashboard",
     "launch",
 ]

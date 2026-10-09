@@ -1,8 +1,4 @@
-"""
-Layer-wise Logit Lens analysis for tracking decision formation across depth.
-"""
-
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 import torch
 import pandas as pd
@@ -17,6 +13,7 @@ class LayerLensRecord:
     top_prob: float
     entropy: float
     top_3_summary: str
+    candidates: List[Tuple[str, float]] = field(default_factory=list)
 
 
 class LogitLens:
@@ -88,6 +85,7 @@ class LogitLens:
                     top_prob=top_prob,
                     entropy=entropy,
                     top_3_summary=summary,
+                    candidates=candidates,
                 )
             )
 

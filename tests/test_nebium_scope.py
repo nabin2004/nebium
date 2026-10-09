@@ -113,3 +113,32 @@ def test_gradio_dashboard_smoke():
     adapter = ns.NebiumAdapter(model=dummy)
     demo = ns.create_dashboard(adapter)
     assert demo is not None
+
+
+def test_visual_diagrams():
+    import matplotlib.figure
+    dummy = ns.DummyNebiumModel(n_layers=4, d_model=64)
+    adapter = ns.NebiumAdapter(model=dummy)
+    lens = ns.LogitLens(adapter)
+
+    # 1. Embedding space PCA plot
+    fig_emb = ns.plot_embedding_space(adapter, rule_variant_name="pawn_backward_one", edit_strength=1.5)
+    assert isinstance(fig_emb, matplotlib.figure.Figure)
+
+    # 2. Activation heatmap plot
+    fig_heat = ns.plot_activation_heatmap(adapter, prompt="e2e4 e7e5", layer=2, alpha=1.0)
+    assert isinstance(fig_heat, matplotlib.figure.Figure)
+
+    # 3. Layer dynamics plot
+    fig_dyn = ns.plot_layer_dynamics(adapter, prompt="e2e4", steering_layer=2, alpha=1.2)
+    assert isinstance(fig_dyn, matplotlib.figure.Figure)
+
+    # 4. Logit lens trajectory plot
+    fig_traj = ns.plot_logit_lens_trajectory(
+        lens, prompt="e2e4", normal_move="e2e4", edited_move="e5e4", steering_layer=2, alpha=1.5
+    )
+    assert isinstance(fig_traj, matplotlib.figure.Figure)
+
+    # 5. Architecture flow diagram
+    fig_flow = ns.plot_transformer_flow_diagram(num_layers=4, injection_layer=2, alpha=1.5)
+    assert isinstance(fig_flow, matplotlib.figure.Figure)
